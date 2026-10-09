@@ -1,0 +1,91 @@
+:root {
+  --font: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  --mono: "Cascadia Mono", Consolas, "Noto Sans Mono", monospace;
+  --text: #e8e8e8;
+  --text-dim: #9aa0a6;
+  /* The monitor's background: this colour at the opacity set in the settings (--panel-alpha). */
+  --panel-rgb: 20, 22, 26;
+  --panel-solid: #1d2026;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --hover: rgba(255, 255, 255, 0.08);
+  --accent: #6cb6ff;
+  --ok: #6fcf7f;
+  --warn: #e5b85c;
+  --bad: #e5705c;
+  /* Status categories: border under each status chip (docs/DESIGN.md 7.1). */
+  --cat-mitigation: #6fcf7f;
+  --cat-shield: #6cb6ff;
+  --cat-source: #e5a25c;
+  --cat-vuln: #e5705c;
+  --cat-invuln: #f0d36b;
+  /* Row backgrounds. */
+  --row-dot: rgba(150, 110, 220, 0.18);
+  --row-death: rgba(200, 60, 60, 0.35);
+  --row-self: rgba(108, 182, 255, 0.06);
+  --bar-damage: rgba(229, 112, 92, 0.22);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+  /* The overlay itself is transparent; pages set their own panel background. */
+  background: transparent;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+}
+
+input {
+  font: inherit;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

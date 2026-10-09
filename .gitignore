@@ -1,0 +1,17 @@
+node_modules/
+dist/
+release/
+*.log
+.DS_Store
+
+# Game icons copied from a local unpack; never committed, only packed into release builds.
+public/icons/
+
+# The icon copy script only works against a local unpack, like the icons themselves.
+scripts/copy-icons.ts
+
+# Audit scripts and write-ups that run on the local sample logs and quote real players' names.
+tools/review-audit/
+docs/log-fields.md
+docs/review-accuracy-audit.md
+docs/sample-rules-audit.md
