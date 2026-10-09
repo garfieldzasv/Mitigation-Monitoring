@@ -86,7 +86,7 @@ function go(change: Partial<ReviewLocation>): void {
   void router.replace({ path: "/review", query });
 }
 
-const NOT_ARCHIVED = "这一场没有存档：设置里这个区域不存档、在复盘窗口里删除了，或超出保留数量被清理";
+const NOT_ARCHIVED = "这一场没有存档：设置里这个区域不存档、解除限制进入的副本不自动存档、在复盘窗口里删除了，或超出保留数量被清理";
 
 async function follow(q: LocationQuery): Promise<void> {
   const at = readLocation(q);

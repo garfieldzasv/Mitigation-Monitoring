@@ -85,7 +85,7 @@ const look = computed(() => ({ "--panel-alpha": String(settings.value.opacity), 
         <span class="num">{{ duration }}</span>
         <span v-if="currentWindow" class="phase-tag" :title="phaseSummary(currentWindow, encounter.start)">离场</span>
         <span class="deaths" title="死亡次数"><UiIcon name="death" /> {{ deaths }}</span>
-        <span v-if="notSaved" class="tag" title="这一场没有存档，只在监控窗口里显示（设置里这个区域不存档，或在复盘窗口里删除了）">不存档</span>
+        <span v-if="notSaved" class="tag" title="这一场没有存档，只在监控窗口里显示（设置里这个区域不存档、解除限制进入的副本不自动存档，或在复盘窗口里删除了）">不存档</span>
       </template>
       <span v-else-if="connection === 'connected'" class="dim">等待战斗…</span>
       <span class="spacer" />

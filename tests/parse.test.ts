@@ -150,6 +150,12 @@ describe("parseLogLine", () => {
     expect(parseLogLine(split("260|2026-09-20T00:33:00.0000000+08:00|0|0|1|0"))).toMatchObject({ type: "combat", act: false, game: false, gameChanged: false });
   });
 
+  it("265: the zone's Content Finder settings, 解除限制 among them (LogGuide's examples)", () => {
+    expect(parseLogLine(split("265|2024-01-04T21:12:35.0540000-05:00|415|the Bowl of Embers|True|1|1|1|0|1"))).toMatchObject({ type: "contentFinder", zoneId: 0x415, unrestricted: true });
+    expect(parseLogLine(split("265|2024-01-04T21:12:02.4720000-05:00|40C|Sastasha|True|0|0|0|1|0"))).toMatchObject({ type: "contentFinder", zoneId: 0x40c, unrestricted: false });
+    expect(parseLogLine(split("265|2024-01-04T21:11:46.6810000-05:00|86|Middle La Noscea|False|0|0|0|0|0"))).toMatchObject({ type: "contentFinder", zoneId: 0x86, unrestricted: false });
+  });
+
   it("pre-filter keeps only consumed line types", () => {
     expect(isRelevantLineType("22")).toBe(true);
     expect(isRelevantLineType("00")).toBe(false);

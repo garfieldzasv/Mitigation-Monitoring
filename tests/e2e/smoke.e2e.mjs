@@ -484,6 +484,8 @@ try {
   await sleep(800);
   const settingsText = await settingsTab.evaluate("document.body.textContent");
   check("settings: lists the archive and monitor options", settingsText.includes("不存档的区域") && settingsText.includes("保留复盘份数") && settingsText.includes("行高"), settingsText.replace(/\s+/g, " ").slice(0, 60));
+  const unrestrictedBox = await settingsTab.evaluate("[...document.querySelectorAll('label.row.check')].find((l) => l.textContent.includes('解除限制进入的副本不自动存档'))?.querySelector('input').checked ?? null");
+  check("settings: duties entered with 解除限制 are not saved by default", unrestrictedBox === true, String(unrestrictedBox));
   const treeLabels = () => settingsTab.evaluate("[...document.querySelectorAll('.zone-tree li .label')].map((l) => l.textContent.trim())");
   const roots = await treeLabels();
   check("settings: the zones to leave unsaved are a tree: 副本, 野外地图, 特殊场景", JSON.stringify(roots) === '["副本","野外地图","特殊场景"]', JSON.stringify(roots));

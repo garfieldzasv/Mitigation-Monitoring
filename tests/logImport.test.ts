@@ -66,6 +66,18 @@ describe("importing pulls", () => {
     expect(await replayed(store, meta!)).toEqual(liveRows(lines, pull!.start));
   });
 
+  it("a pull in a duty entered with 解除限制 imports like any other: that setting only governs the monitor's own archive", async () => {
+    const lines = loadFixture("hunt-8p.log.gz");
+    const at = lines.findIndex((l) => l[0] === "01");
+    lines.splice(at + 1, 0, ["265", lines[at]![1]!, "514", "护锁刃龙狩猎战", "True", "1", "0", "0", "0", "0"]);
+    const [pull] = await scanLog(logOf(lines));
+    expect(pull).toMatchObject({ zoneName: "护锁刃龙狩猎战", title: "护锁刃龙", result: "clear", summary: { deaths: 7, rows: 761 } });
+    const store = new MemoryArchiveStore();
+    expect(await importLog(logOf(lines), [pull!], store, { file: "Network_30301_20260920.log" })).toEqual([pull!.id]);
+    const [meta] = await store.list();
+    expect(await replayed(store, meta!)).toEqual(liveRows(lines, pull!.start));
+  });
+
   it("a later pull of a zone visit joins its 复盘 and carries its own pre-pull state", async () => {
     const lines = loadFixture("alliance-24p.log.gz");
     const [first, boss] = await scanLog(logOf(lines));

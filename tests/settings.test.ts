@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { archivesZone, DEFAULT_SETTINGS, normalizeSettings } from "@/core/settings/settings";
+import { archivesEncounter, archivesZone, DEFAULT_SETTINGS, normalizeSettings } from "@/core/settings/settings";
 
 describe("normalizeSettings", () => {
   it("fills defaults for anything missing or broken", () => {
     expect(normalizeSettings(undefined)).toEqual(DEFAULT_SETTINGS);
     expect(normalizeSettings("nonsense")).toEqual(DEFAULT_SETTINGS);
-    expect(normalizeSettings({ rowHeight: "22", fontSize: 99, highlightSelf: "yes", skipZones: "field" })).toEqual(DEFAULT_SETTINGS);
+    expect(normalizeSettings({ rowHeight: "22", fontSize: 99, highlightSelf: "yes", skipZones: "field", skipUnrestricted: 1 })).toEqual(DEFAULT_SETTINGS);
   });
 
   it("keeps valid values, clamps numbers into range and rounds them", () => {
-    expect(normalizeSettings({ skipZones: ["field", "field", 3, ""], keepEncounters: 33.6, rowHeight: 26, fontSize: 13, opacity: 0.555, highlightSelf: false })).toEqual({
+    expect(normalizeSettings({ skipZones: ["field", "field", 3, ""], skipUnrestricted: false, keepEncounters: 33.6, rowHeight: 26, fontSize: 13, opacity: 0.555, highlightSelf: false })).toEqual({
       skipZones: ["field"],
+      skipUnrestricted: false,
       keepEncounters: 34,
       rowHeight: 26,
       fontSize: 13,
@@ -50,5 +51,19 @@ describe("archivesZone", () => {
     expect(archivesZone(skipping(["special:t26"]), 732)).toBe(false);
     expect(archivesZone(skipping(["duty"]), 372)).toBe(false); // 水晶塔 希尔科斯塔
     expect(archivesZone(skipping(["duty"]), 99999)).toBe(true);
+  });
+});
+
+describe("archivesEncounter", () => {
+  const duty = 0x514; // 护锁刃龙狩猎战
+  it("by default leaves out a duty entered with 解除限制; one whose settings are unknown is archived", () => {
+    expect(archivesEncounter(DEFAULT_SETTINGS, { zoneId: duty, unrestricted: true })).toBe(false);
+    expect(archivesEncounter(DEFAULT_SETTINGS, { zoneId: duty })).toBe(true);
+  });
+
+  it("archives it when the setting is off; the skipped zones still apply", () => {
+    const s = normalizeSettings({ skipUnrestricted: false });
+    expect(archivesEncounter(s, { zoneId: duty, unrestricted: true })).toBe(true);
+    expect(archivesEncounter(normalizeSettings({ skipUnrestricted: false, skipZones: ["duty"] }), { zoneId: duty, unrestricted: true })).toBe(false);
   });
 });

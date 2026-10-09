@@ -13,7 +13,7 @@ onMounted(() => (document.title = "设置 · 小队受伤记录"));
 
 const opacityPercent = computed(() => Math.round(settings.value.opacity * 100));
 
-type Flag = "highlightSelf";
+type Flag = "skipUnrestricted" | "highlightSelf";
 type Amount = "keepEncounters" | "rowHeight" | "fontSize";
 
 /** Out-of-range or partial input is normalised by update() (normalizeSettings). */
@@ -40,6 +40,13 @@ function setOpacity(e: Event): void {
         <ZoneTree :skip="settings.skipZones" @update:skip="(skipZones) => update({ skipZones })" />
         <small>勾选的区域里的战斗不存档，监控窗口照常显示。游戏数据里还没有的新区域照常存档</small>
       </div>
+      <label class="row check">
+        <input type="checkbox" :checked="settings.skipUnrestricted" @change="setFlag('skipUnrestricted', $event)" />
+        <span>
+          解除限制进入的副本不自动存档
+          <small>监控窗口照常显示；在复盘窗口里导入 ACT 日志时照常导入。进本之后才打开监控窗口的，认不出解除限制，照常存档</small>
+        </span>
+      </label>
       <label class="row">
         <span class="name">保留复盘份数</span>
         <input type="number" :min="KEEP_RANGE.min" :max="KEEP_RANGE.max" :value="settings.keepEncounters" @change="setAmount('keepEncounters', $event)" />

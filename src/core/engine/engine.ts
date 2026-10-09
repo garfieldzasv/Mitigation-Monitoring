@@ -66,6 +66,8 @@ export class Engine {
   onShieldUsedUp?: (lost: ShieldUsedUp) => void;
   private readonly options: { maxEncounters: number };
   private zone = { id: 0, name: "" };
+  /** The last 265 line: the Content Finder settings of the zone it names (it may come before that zone's 01 line). */
+  private contentFinder: { zoneId: number; unrestricted: boolean } | undefined;
   /** Lines handled: where a 37 line came (DamageRow.effectOrder). */
   private lineNo = 0;
   /**
@@ -183,6 +185,9 @@ export class Engine {
         this.statuses.clear();
         for (const row of this.shields.flush()) this.emitRowUpdate(row);
         this.shields.clear();
+        break;
+      case "contentFinder":
+        this.contentFinder = { zoneId: e.zoneId, unrestricted: e.unrestricted };
         break;
       case "primaryPlayer":
         this.party.setSelf(e.id, e.name);
@@ -385,6 +390,7 @@ export class Engine {
       id: this.nextEncounterId++,
       zoneId: this.zone.id,
       zoneName: this.zone.name,
+      ...(this.contentFinder?.zoneId === this.zone.id && this.contentFinder.unrestricted ? { unrestricted: true } : {}),
       start: time,
       result: "unknown",
       rows: [],

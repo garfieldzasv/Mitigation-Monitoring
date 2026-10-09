@@ -5,7 +5,7 @@ import { Engine } from "@/core/engine/engine";
 import type { Encounter } from "@/core/engine/types";
 import { readCombatants, type OverlayCombatant } from "@/core/overlay/combatants";
 import { addOverlayListener, requestOverlayHandler } from "@/core/overlay/overlayApi";
-import { archivesZone } from "@/core/settings/settings";
+import { archivesEncounter } from "@/core/settings/settings";
 import { archiveStore, openArchiveChannel, type ArchiveMessage } from "../archive";
 import { useSettings } from "./useSettings";
 
@@ -40,7 +40,7 @@ function start(): ArchiveWriter {
   const w = new ArchiveWriter(engine, {
     store: archiveStore(),
     maxKept: () => settings.value.keepEncounters,
-    accept: (encounter) => archivesZone(settings.value, encounter.zoneId),
+    accept: (encounter) => archivesEncounter(settings.value, encounter),
     onUpdate: (id) => channel?.postMessage({ type: "archive", id } satisfies ArchiveMessage),
   });
   void w.closeAbandoned(Date.now());

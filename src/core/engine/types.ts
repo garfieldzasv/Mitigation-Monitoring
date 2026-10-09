@@ -169,6 +169,8 @@ export interface Encounter {
   id: number;
   zoneId: number;
   zoneName: string;
+  /** The duty was entered with 解除限制 (its 265 line); unset when it was not, or no 265 line named the zone. */
+  unrestricted?: boolean;
   start: number;
   /** Unset while the encounter is running. */
   end?: number;

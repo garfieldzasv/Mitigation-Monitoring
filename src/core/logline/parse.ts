@@ -5,6 +5,7 @@ import {
   CancelField,
   CastField,
   CombatantField,
+  ContentFinderField,
   DeathField,
   DoTField,
   EffectField,
@@ -46,7 +47,9 @@ export type GameEvent =
    * 260 (LogGuide): `game`, whether the game says the player is in combat; `act`, whether ACT does — which "may include
    * other people around you and not yourself"; `gameChanged`, the game's state changed since the last 260 line.
    */
-  | { type: "combat"; time: number; act: boolean; game: boolean; gameChanged: boolean };
+  | { type: "combat"; time: number; act: boolean; game: boolean; gameChanged: boolean }
+  /** 265 (LogGuide): the Content Finder settings the zone was entered with; `unrestricted`, 解除限制. */
+  | { type: "contentFinder"; time: number; zoneId: number; unrestricted: boolean };
 
 /** 20: a cast bar starts. */
 export interface CastEvent {
@@ -431,6 +434,13 @@ export function parseLogLine(line: readonly string[]): GameEvent | undefined {
         act: line[InCombatField.inACTCombat] === "1",
         game: line[InCombatField.inGameCombat] === "1",
         gameChanged: line[InCombatField.isGameChanged] === "1",
+      };
+    case LineType.ContentFinderSettings:
+      return {
+        type: "contentFinder",
+        time: t,
+        zoneId: hex(line[ContentFinderField.zoneId]) || 0,
+        unrestricted: line[ContentFinderField.unrestrictedParty] === "1",
       };
     default:
       return undefined;

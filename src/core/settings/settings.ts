@@ -1,4 +1,5 @@
 import { DEFAULT_KEPT_ENCOUNTERS } from "../archive/types";
+import type { Encounter } from "../engine/types";
 import { isNoCombatZone } from "../game/zones";
 import { zoneSkipped } from "./zoneSkip";
 
@@ -9,6 +10,8 @@ import { zoneSkipped } from "./zoneSkip";
 export interface Settings {
   /** Archive: zones whose encounters are not saved, as keys of the zone tree (core/settings/zoneSkip.ts). By default all but the duties. */
   skipZones: string[];
+  /** Archive: fights in a duty entered with 解除限制 are not saved. */
+  skipUnrestricted: boolean;
   /** Archive: finished, unpinned 复盘 (zone visits, all their pulls) kept. */
   keepEncounters: number;
   /** Monitor: row height in px. */
@@ -23,6 +26,7 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   skipZones: ["field", "special"],
+  skipUnrestricted: true,
   keepEncounters: DEFAULT_KEPT_ENCOUNTERS,
   rowHeight: 22,
   fontSize: 12,
@@ -43,6 +47,17 @@ export const OPACITY_RANGE = { min: 0.3, max: 1 } as const;
  */
 export function archivesZone(settings: { readonly skipZones: readonly string[] }, zoneId: number): boolean {
   return !isNoCombatZone(zoneId) && !zoneSkipped(settings.skipZones, zoneId);
+}
+
+/**
+ * Whether an encounter is archived (docs/DESIGN.md 6.2): its zone is, and it is not in a duty entered with 解除限制 while
+ * the settings skip those. Settings the log does not tell (no 265 line for the zone) count as not 解除限制.
+ */
+export function archivesEncounter(
+  settings: { readonly skipZones: readonly string[]; readonly skipUnrestricted: boolean },
+  encounter: Pick<Encounter, "zoneId" | "unrestricted">,
+): boolean {
+  return archivesZone(settings, encounter.zoneId) && !(settings.skipUnrestricted && encounter.unrestricted);
 }
 
 /** Keys stored at most; the tree has fewer nodes than this. */
@@ -68,6 +83,7 @@ export function normalizeSettings(value: unknown): Settings {
   };
   return {
     skipZones: skipZonesOf(v),
+    skipUnrestricted: typeof v.skipUnrestricted === "boolean" ? v.skipUnrestricted : DEFAULT_SETTINGS.skipUnrestricted,
     keepEncounters: Math.round(clamp(v.keepEncounters, KEEP_RANGE.min, KEEP_RANGE.max, DEFAULT_SETTINGS.keepEncounters)),
     rowHeight: oneOf(v.rowHeight, ROW_HEIGHTS, DEFAULT_SETTINGS.rowHeight),
     fontSize: oneOf(v.fontSize, FONT_SIZES, DEFAULT_SETTINGS.fontSize),

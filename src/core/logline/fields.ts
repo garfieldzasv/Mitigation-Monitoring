@@ -28,6 +28,8 @@ export const LineType = {
   /** Periodic HP: review only (HP curves). */
   UpdateHp: "39",
   InCombat: "260",
+  /** Content Finder settings, written at each zone change: whether the duty was entered with 解除限制 (docs/DESIGN.md 6.2). */
+  ContentFinderSettings: "265",
   /** Combatant memory: a player's height (PosZ in its Change lines) says they fell off the arena. */
 } as const;
 
@@ -120,6 +122,9 @@ export const EffectResultField = { targetId: 2, sequence: 4, currentHp: 5, maxHp
 export const StatusListField = { targetId: 2, currentHp: 5, maxHp: 6, shieldPercent: 9 } as const;
 
 export const InCombatField = { inACTCombat: 2, inGameCombat: 3, isACTChanged: 4, isGameChanged: 5 } as const;
+
+/** 265 (LogGuide): the zone ID (hex), its name, whether it has Content Finder settings, then the settings, `1` when on. */
+export const ContentFinderField = { zoneId: 2, unrestrictedParty: 5 } as const;
 
 /** 261: "Add" / "Change" / "Remove", the combatant, then name / value pairs (a Change line has only what changed). */
 
