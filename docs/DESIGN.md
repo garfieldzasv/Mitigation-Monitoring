@@ -1079,7 +1079,7 @@ class ReplayDetail {
   - **盾被打破时缩短复唱**（`refunds`）：技能说明里“（附加自身的）防护罩因吸收到足够的伤害而消失时，X的复唱时间缩短N秒”，记在 X 上：哪个技能的盾、缩短几秒；另有技能说明写“解除自身附加的S”、S 是这个技能的盾的，记为解除它的技能（油性坦培拉涂层解除坦培拉涂层）。说明按原文的换行和句号先切句再渲染（渲染后换行没了）。目前只有坦培拉涂层（自己的盾 60 秒、油性坦培拉涂层的 30 秒）
   - 规则定不了的（一个技能升级成两个、升级前后复唱组不同、特性里没读懂的复唱改动、技能说明里缩短某个减伤技能复唱却不是上面那种句子、各职业积蓄次数不同）导入时报错停下，不写文件
 - **状态图标**：`copy-icons` 复制职业图标、和伤害有关的状态的全部图标（含叠层图标）、其余列出的状态的基础图标（2026-10-09 起，8.2）和减伤技能的图标，共 3,442 个、17.2 MB（原先 996 个、约 5.6 MB）。缺 1 个：215049（战斗能力降低，状态 701），国服、国际服的游戏数据都指向它，但游戏文件里没有这张图：图标来源 XIVAPI 返回 404（含高清版 `_hr1`），国服客户端用 SaintCoinach 导出 215000 段也没有（2026-10-09 核对，前后的 215048、215050 都有），界面上这个状态不画图标
-- **图标**：本机图标目录 `D:/Workspace/Dump/ffxiv icons/icons`（约 6.5 万张，结构 `{分组6位}/{ID 6位}.png`；由同目录的 `fetch-all.js` 从 XIVAPI 的 `ui/icon/` 逐个下载，下载不到的记在 `state.json` 的 `missing`），用环境变量 `FFXIV_ICON_DIR` 覆盖
+- **图标**：本机解包的游戏图标目录（约 6.5 万张，结构 `{分组6位}/{ID 6位}.png`；由同目录的 `fetch-all.js` 从 XIVAPI 的 `ui/icon/` 逐个下载，下载不到的记在 `state.json` 的 `missing`），用环境变量 `FFXIV_ICON_DIR` 覆盖
   - 职业图标：`062100 + ClassJob ID`（同 Skills Monitoring）
   - 状态图标：Status 表的图标 ID，在 `21xxxx` 段；多层状态的第 n 层图标是 `图标ID + n − 1`
   - 技能图标：减伤技能用 Action 表的图标（`defensives.json`，`0xxxxx` 段）；敌方技能图标大多是通用图，不显示
@@ -1148,18 +1148,19 @@ class ReplayDetail {
 本机 pnpm release
   ├─ 1. copy-icons     从解包目录复制图标到 public/icons/
   ├─ 2. test + build   运行测试，vite build 输出 dist/（包含图标）
-  ├─ 3. 打包           dist/ → release-vX.Y.Z.zip
+  ├─ 3. 打包           dist/ → release/mitigation-monitoring-vX.Y.Z.zip
   └─ 4. 上传           创建 GitHub Release vX.Y.Z（先建草稿、传完附件再发布）
 
-GitHub Actions（Release 发布时触发）
+GitHub Actions（Release 发布时触发，.github/workflows/deploy.yml）
   └─ 下载附件 → upload-pages-artifact → deploy-pages
 ```
 
+- 源码仓库 [garfieldzasv/Mitigation-Monitoring](https://github.com/garfieldzasv/Mitigation-Monitoring) 是公开的，Pages 直接从这个仓库部署，站点是 <https://garfieldzasv.github.io/Mitigation-Monitoring/>（同 Skills Monitoring）
+- `pnpm release` 依次跑 `copy-icons`、单测、构建、冒烟测试，再打包；`--publish` 用 `gh` 建 Release。没有 `gh` 时在网页上建草稿、上传 zip 再发布，或用 GitHub API 做同样三步
 - 一份产物同时用于在线地址和本地文件（IIFE 单文件，`base: "./"`，hash 路由）
 - 悬浮窗网址填站点根地址；复盘窗口是 `.../#/review`，设置页是 `.../#/settings`
-- README 推荐用在线地址：复盘依赖 IndexedDB，`file://` 下能否保存要在 M1 实测
+- README 以在线地址为主，Release zip 解压后可离线用（ACT 的 `file://` 下 IndexedDB 已实测可用，11.2）。两种地址是不同的来源，设置和复盘存档互不相通
 - 仓库一次性设置：Pages 来源选 GitHub Actions；`github-pages` 环境的部署规则加上标签 `v*`
-
 ---
 
 ## 10. 风险与限制

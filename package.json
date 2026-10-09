@@ -1,6 +1,6 @@
 {
   "name": "mitigation-monitoring",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "FFXIV party damage-taken log for ACT + OverlayPlugin: a live overlay and a post-fight review window",
@@ -14,6 +14,7 @@
     "e2e": "vite build && node tests/e2e/smoke.e2e.mjs",
     "make-fixture": "tsx scripts/make-fixture.ts",
     "copy-icons": "tsx scripts/copy-icons.ts",
+    "release": "tsx scripts/release.ts",
     "import-data": "tsx scripts/import-game-data.ts",
     "estimate-mitigation": "tsx scripts/estimate-mitigation.ts",
     "death-attribution": "tsx scripts/death-attribution.ts",

@@ -1,0 +1,56 @@
+# Deploys a release package to GitHub Pages.
+#
+# The package is built locally by `pnpm release` (game icons are not in git, so CI cannot build it)
+# and attached to a GitHub Release. Publishing the release triggers this workflow, which downloads
+# the zip and deploys it as-is. Re-run the workflow for an older release to roll back.
+#
+# One-time repository settings:
+#   - Pages → Source: "GitHub Actions" (a new repository may start on "Deploy from a branch").
+#   - Environments → github-pages → Deployment branches and tags: add the tag rule `v*`.
+#     The environment only allows `main` by default, and a release-triggered run is on its tag.
+name: Deploy to GitHub Pages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy (e.g. v0.1.0)
+        required: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download release package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "mitigation-monitoring-*.zip" --dir package
+          mkdir site
+          unzip -q package/*.zip -d site
+          test -f site/index.html
+          test -d site/icons
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
