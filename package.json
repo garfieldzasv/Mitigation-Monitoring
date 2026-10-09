@@ -1,6 +1,6 @@
 {
   "name": "mitigation-monitoring",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "FFXIV party damage-taken log for ACT + OverlayPlugin: a live overlay and a post-fight review window",

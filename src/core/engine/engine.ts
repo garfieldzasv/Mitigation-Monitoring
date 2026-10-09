@@ -195,6 +195,7 @@ export class Engine {
       case "addCombatant":
         this.registry.add({ id: e.id, name: e.name, job: e.job, level: e.level, ownerId: e.ownerId, maxHp: e.maxHp });
         this.party.fill(e);
+        if (this.phases.onAdd(e.id, e.time)) this.emitPhase();
         break;
       case "removeCombatant":
         this.registry.remove(e.id);

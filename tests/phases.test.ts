@@ -66,12 +66,17 @@ describe("phase rules", () => {
     targetCount: 1,
   });
   const toggle = (sec: number, targetable: boolean, id = BOSS): GameEvent => ({ type: "targetable", time: at(sec), id, name: "x", targetable });
+  const dies = (sec: number, id: string): GameEvent => ({ type: "death", time: at(sec), targetId: id, targetName: "Add", sourceId: "10000001", sourceName: "P1" });
+  const removed = (sec: number, id = BOSS): GameEvent => ({ type: "removeCombatant", time: at(sec), id });
+  const added = (sec: number, id = BOSS): GameEvent => ({ type: "addCombatant", time: at(sec), id, name: "x", job: 0, level: 0, maxHp: 1_000_000 });
   const run = (events: GameEvent[]) => {
     const engine = new Engine();
     engine.handle({ type: "combat", time: at(0), act: true, game: true, gameChanged: true });
     for (const e of events) engine.handle(e);
     return engine.current!;
   };
+  const windows = (enc: { untargetable: { start: number; end?: number }[] }) =>
+    enc.untargetable.map((w) => [(w.start - t0) / 1000, w.end === undefined ? "open" : (w.end - t0) / 1000]);
 
   it("a window opens as soon as every enemy the players targeted is untargetable, whatever its length", () => {
     const enc = run([hit(1, 900_000), toggle(20, false), toggle(22, true)]);
@@ -94,6 +99,43 @@ describe("phase rules", () => {
       ["00:00–00:15", 0],
       ["离场 00:15 起", 15],
     ]);
+  });
+
+  it("an enemy the players hit counts from when it became targetable: no window while the next wave waits to be hit", () => {
+    // 永远之暗: the boss away, its hands come in waves, each targetable a moment before anyone hits it.
+    const A1 = "40000002", A2 = "40000003";
+    const wave = [hit(1, 900_000), toggle(9, true, A1), toggle(10, false), hit(10.5, 80_000, A1, 80_000), toggle(19, true, A2), dies(20, A1)];
+    const engine = new Engine();
+    engine.handle({ type: "combat", time: at(0), act: true, game: true, gameChanged: true });
+    for (const e of wave) engine.handle(e);
+    // Nobody has hit the second wave yet: nothing to hit, as far as is known.
+    expect(windows(engine.current!)).toEqual([[20, "open"]]);
+    // Its first hit shows it could be hit since 19: no window after all.
+    engine.handle(hit(21, 80_000, A2, 80_000));
+    expect(windows(engine.current!)).toEqual([]);
+    for (const e of [dies(30, A2), toggle(40, true)]) engine.handle(e);
+    expect(windows(engine.current!)).toEqual([[30, 40]]);
+    // Enemies nobody hit still do not count, targetable or not.
+    expect(windows(run([hit(1, 900_000), toggle(10, false), toggle(12, true, "40000099"), toggle(20, true)]))).toEqual([[10, 20]]);
+  });
+
+  it("an enemy gone from the scene (04) and back (03) counts afresh: from its next hit, or when it becomes targetable", () => {
+    // 瓯博讷修道院 / 永远之暗: the boss leaves, is removed and added back, and is fought again with no 34 line.
+    expect(windows(run([hit(1, 900_000), toggle(10, false), removed(12), added(20), hit(21, 800_000), toggle(30, false)]))).toEqual([
+      [10, 21],
+      [30, "open"],
+    ]);
+    expect(windows(run([hit(1, 900_000), toggle(10, false), removed(12), added(20), toggle(25, true)]))).toEqual([[10, 25]]);
+    // An 03 with no 04 before it (LogGuide: also when it comes into view) leaves it as it was.
+    expect(windows(run([hit(1, 900_000), added(5), hit(6, 890_000), toggle(10, false)]))).toEqual([[10, "open"]]);
+  });
+
+  it("changes at one moment settle together: no stretch, 在场 or 离场, of no length", () => {
+    // 朱雀: an add the players hit earlier shows its nameplate and hides it again in the same millisecond.
+    const BIRD = "40000002";
+    expect(windows(run([hit(1, 900_000), hit(2, 50_000, BIRD, 50_000), toggle(3, false, BIRD), toggle(10, false), toggle(15, true, BIRD), toggle(15, false, BIRD), toggle(30, true)]))).toEqual([[10, 30]]);
+    // The last add dies the moment the boss comes back.
+    expect(windows(run([hit(1, 900_000), hit(2, 50_000, BIRD, 50_000), toggle(8, false), dies(10, BIRD), toggle(10, true)]))).toEqual([]);
   });
 
   it("a boss that never comes back ended the fight: a window while it runs, gone once it ends", () => {
