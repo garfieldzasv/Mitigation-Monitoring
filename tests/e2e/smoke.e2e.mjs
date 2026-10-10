@@ -757,6 +757,25 @@ try {
   // Shown / all rows: all of them, as the scan counted (the table's own filters may hide some).
   const importedRows = await review.evaluate("document.querySelector('.tabs .num')?.textContent.trim() ?? ''");
   check("import: its rows are rebuilt like any 复盘's, as many as the scan counted", importedRows.endsWith("/148"), importedRows);
+  // An aura's effect (节制's 1873 on the party) has no time of its own: 光环 in the detail and the icon's tooltip, no figure.
+  const auraShown = await review.evaluate(`(async () => {
+    const body = document.querySelector('.table .body');
+    for (let top = 0; top < body.scrollHeight; top += body.clientHeight) {
+      body.scrollTop = top;
+      await new Promise((r) => setTimeout(r, 50));
+      const row = [...document.querySelectorAll('.table .row')].find((r) => (r.querySelector('.chips')?.title ?? '').includes('节制（'));
+      if (!row) continue;
+      const tip = row.querySelector('.chips').title.split('\\n').find((t) => t.startsWith('节制（'));
+      const figure = row.querySelector('.chip img[alt="节"]')?.closest('.chip').querySelector('.time').textContent;
+      row.click();
+      await new Promise((r) => setTimeout(r, 200));
+      const rems = [...document.querySelectorAll('.detail .statuses li')].filter((li) => li.querySelector('.sname')?.textContent.trim() === '节制').map((li) => li.querySelector('.rem').textContent.trim());
+      return JSON.stringify({ tip, figure, rems });
+    }
+    return '{}';
+  })()`);
+  const aura = JSON.parse(auraShown);
+  check("review: an aura's effect shows 光环 for its time, in the detail and on its icon (节制)", aura.rems?.includes("光环") && /，光环[，）]/.test(aura.tip ?? "") && aura.figure === "", auraShown);
   await review.evaluate("document.querySelector('.encounters .import').click(); true");
   await sleep(300);
   await review.setFiles(".dialog input[type=file]", [logPath]);

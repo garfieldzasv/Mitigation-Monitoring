@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { damageEffect } from "../scripts/game-data/statusEffects";
-import { isListedStatus, negatesDamage, statusCategory } from "@/core/game/statuses";
+import { isAuraStatus, isListedStatus, negatesDamage, statusCategory } from "@/core/game/statuses";
 
 // Descriptions as the CN Status sheet writes them.
 describe("what a damage status's description says (scripts/game-data/statusEffects.ts)", () => {
@@ -60,5 +60,21 @@ describe("statuses the review does not list (docs/DESIGN.md 8.2)", () => {
     expect(isListedStatus(0xee0)).toBe(true); // 免除方向要求: named, with an icon
     expect(isListedStatus(1873)).toBe(true); // 节制
     expect(isListedStatus(0x74f)).toBe(true); // 天辉
+  });
+});
+
+describe("a player's aura (docs/DESIGN.md 5.4): the timer hidden, but not forever", () => {
+  const player = "10000001";
+  it("the effect an aura or a ground effect keeps re-sending", () => {
+    for (const id of [1873, 299, 1912, 738, 3689, 2216, 2217, 2218, 1176, 3885]) expect(isAuraStatus(id, player)).toBe(true);
+  });
+
+  it("not a stance, a dance partner, 关心 (forever), nor a timed status like the caster's own 节制", () => {
+    for (const id of [1833, 91, 1824, 2605, 1872, 1191]) expect(isAuraStatus(id, player)).toBe(false);
+  });
+
+  it("not a duty's mechanics, which no player put on", () => {
+    expect(isAuraStatus(1726, "40001234")).toBe(false); // 拘束
+    expect(isAuraStatus(2832, "E0000000")).toBe(false); // 黑暗咒缚
   });
 });

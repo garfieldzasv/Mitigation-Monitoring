@@ -169,7 +169,7 @@ function verdict(r: DamageRow): string {
           >{{ formatMitigation(r.multiplier, r.multiplierPartial) }}</span>
           <span class="num dim" :title="unmitigatedTitle(r)">{{ formatUnmitigated(r) }}</span>
           <span class="num" :title="hpAfterNote(r)">{{ percentOfMax(hpAfterOf(r), r.maxHp) }}</span>
-          <span class="chips"><StatusChips :target="r.targetStatuses" :source="r.sourceStatuses" :terms="r.mitigation" :max="9" /></span>
+          <span class="chips"><StatusChips :target="r.targetStatuses" :source="r.sourceStatuses" :terms="r.mitigation" :max="9" auras /></span>
           <span class="miss ell" :title="(missing.get(r.id) ?? []).map((s) => s.name).join('、')">{{ (missing.get(r.id) ?? []).map((s) => s.name).join("、") }}</span>
           <span class="dim">{{ verdict(r) }}</span>
         </div>

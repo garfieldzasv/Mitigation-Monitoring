@@ -48,17 +48,18 @@ function autoAttackIds(actionCsv: string): { ids: number[]; unnamed: number } {
 }
 
 /**
- * Status sheet raw columns: 0 Name, 1 Description, 2 Icon, 4 MaxStacks, 6 StatusCategory (1 good, 2 bad), 18
- * IsPermanent, 27 IsFcBuff. The CN sheet's column names are shifted from raw 17 on: the one it calls IsPermanent (17) is
- * InflictedByActor, the one it calls PartyListPriority (18) is IsPermanent — so the global sheet's columns
- * (xivapi/ffxiv-datamining, kept to the current schema) name them, and their values agree on 99.96 % of the statuses
- * both have; IsFcBuff on all of them (its 17 are the 部队特效：… statuses).
+ * Status sheet raw columns: 0 Name, 1 Description, 2 Icon, 4 MaxStacks, 6 StatusCategory (1 good, 2 bad), 17
+ * InflictedByActor, 18 IsPermanent, 27 IsFcBuff. The CN sheet's column names are shifted from raw 17 on: the one it
+ * calls IsPermanent (17) is InflictedByActor, the one it calls PartyListPriority (18) is IsPermanent — so the global
+ * sheet's columns (xivapi/ffxiv-datamining, kept to the current schema) name them, and their values agree on 99.96 % of
+ * the statuses both have; IsFcBuff on all of them (its 17 are the 部队特效：… statuses).
  */
 const STATUS_NAME = 0;
 const STATUS_DESCRIPTION = 1;
 const STATUS_ICON = 2;
 const STATUS_MAX_STACKS = 4;
 const STATUS_CATEGORY = 6;
+const STATUS_INFLICTED_BY_ACTOR = 17;
 const STATUS_IS_PERMANENT = 18;
 const STATUS_IS_FC_BUFF = 27;
 /** StatusCategory 2: a debuff. */
@@ -127,6 +128,22 @@ function statusTable(statusCsv: string): { rows: [number, number, number, Status
 function permanentStatusIds(statusCsv: string): number[] {
   const ids: number[] = [];
   for (const [id, cells] of cnRows(statusCsv)) if (cells[STATUS_NAME + 1] && cells[STATUS_IS_PERMANENT + 1] === "True") ids.push(id);
+  return ids.sort((a, b) => a - b);
+}
+
+/**
+ * Of those, the ones that still run out (docs/DESIGN.md 5.4): IsPermanent without InflictedByActor. Neither name is
+ * documented; Sapphire's own names for the sheet's flags (deps/datReader/Exd/Structs.h) are HideTimer and Forever, and
+ * IsPermanent is the one hiding the timer (LogGuide), so InflictedByActor is Forever: a stance, a dance partner or
+ * 关心 has both and stays until it is taken off; an aura or a ground effect only hides its timer, the game re-sends it
+ * every 3 s to whoever is in range and it lapses once they leave (节制's 1873, 野战治疗阵's 299, a bard's song). A
+ * duty's mechanics can be this too (拘束): what a player put on is an aura's.
+ */
+function auraStatusIds(statusCsv: string): number[] {
+  const ids: number[] = [];
+  for (const [id, cells] of cnRows(statusCsv)) {
+    if (cells[STATUS_NAME + 1] && cells[STATUS_IS_PERMANENT + 1] === "True" && cells[STATUS_INFLICTED_BY_ACTOR + 1] !== "True") ids.push(id);
+  }
   return ids.sort((a, b) => a - b);
 }
 
@@ -257,6 +274,7 @@ async function main(): Promise<void> {
   const statusCsv = await sheet("Status");
   const statuses = statusTable(statusCsv);
   const permanent = permanentStatusIds(statusCsv);
+  const auras = auraStatusIds(statusCsv);
   const dots = damageOverTimeIds(statusCsv);
   const enablers = enablerStatusIds(actionCsv, await sheet("ActionProcStatus"));
   const unlisted = unlistedStatusIds(statusCsv);
@@ -264,13 +282,14 @@ async function main(): Promise<void> {
   console.log(
     `statuses with a damage effect: ${statuses.rows.length}`,
     statuses.counts,
-    `permanent: ${permanent.length}, damage over time: ${dots.length}, enabling an action: ${enablers.length}, not shown in the game: ${unlisted.unshown.length}, free company buffs: ${unlisted.fcBuffs.length}, other statuses with an icon: ${icons.length}`,
+    `permanent: ${permanent.length} (still running out: ${auras.length}), damage over time: ${dots.length}, enabling an action: ${enablers.length}, not shown in the game: ${unlisted.unshown.length}, free company buffs: ${unlisted.fcBuffs.length}, other statuses with an icon: ${icons.length}`,
   );
   writeJson("statuses.json", {
     source: `${commit.sha} ${commit.message}`,
     columns: ["id", "icon", "maxStacks", "kind", "scope", "byte"],
     rows: statuses.rows,
     permanent,
+    auras,
     dots,
     enablers,
     unshown: unlisted.unshown,

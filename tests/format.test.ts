@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, formatMitigation, formatRemaining, formatUnmitigated, remainingSeconds, mitigationColor, mitigationPercent, mitigationTitle, unmitigatedEstimate, verdictLabel, vulnerabilityNote } from "@/app/format";
+import { formatClock, formatMitigation, formatRemaining, formatUnmitigated, remainingSeconds, mitigationColor, mitigationPercent, mitigationTitle, statusRemaining, unmitigatedEstimate, verdictLabel, vulnerabilityNote } from "@/app/format";
 import type { DamageRow } from "@/core/engine/types";
 
 describe("formatClock", () => {
@@ -18,6 +18,13 @@ describe("formatRemaining", () => {
     expect(formatRemaining(60_000)).toBe("1:00");
     expect(formatRemaining(3_203_200)).toBe("53:23");
     expect(formatRemaining(Number.POSITIVE_INFINITY)).toBe("常驻");
+  });
+
+  it("光环 for a player's aura: it has no time of its own; a stance stays 常驻", () => {
+    const player = "10000001";
+    expect(statusRemaining({ id: 1873, remainingMs: Number.POSITIVE_INFINITY, sourceId: player })).toBe("光环");
+    expect(statusRemaining({ id: 1833, remainingMs: Number.POSITIVE_INFINITY, sourceId: player })).toBe("常驻");
+    expect(statusRemaining({ id: 1191, remainingMs: 8_640, sourceId: player })).toBe("8.7 秒");
   });
 });
 

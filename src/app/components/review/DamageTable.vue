@@ -177,7 +177,7 @@ function deathText(r: DeathRow): string {
             {{ formatMitigation(r.multiplier, r.multiplierPartial) }}
           </span>
           <span class="c-raw num" :title="unmitigatedTitle(r)">{{ formatUnmitigated(r) }}</span>
-          <span class="c-status"><StatusChips :target="r.targetStatuses" :source="r.sourceStatuses" :terms="r.mitigation" :max="10" /></span>
+          <span class="c-status"><StatusChips :target="r.targetStatuses" :source="r.sourceStatuses" :terms="r.mitigation" :max="10" auras /></span>
           <span class="c-verdict">{{ verdict(r) }}</span>
           <span class="c-aoe num">{{ (r.targetCount ?? 1) > 1 ? `×${r.targetCount}` : "" }}</span>
         </template>

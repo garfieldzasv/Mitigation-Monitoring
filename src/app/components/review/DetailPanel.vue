@@ -19,13 +19,13 @@ import {
   formatClock,
   hpAfterOf,
   formatMitigation,
-  formatRemaining,
   formatWallClock,
   mitigationTitle,
   percentOfMax,
   STATUS_CATEGORY_LABEL,
   formatUnmitigated,
   shieldAfterOf,
+  statusRemaining,
   unmitigatedTitle,
   verdictLabel,
 } from "../../format";
@@ -88,7 +88,7 @@ function statusLines(list: StatusSnap[], side: "target" | "source", terms: Damag
       icon: statusIconId(s.id, s.stacks),
       category: STATUS_CATEGORY_LABEL[s.category],
       inactive: s.category !== "other" && !termApplies(termOf.get(`${side}:${s.id}`)),
-      remaining: formatRemaining(s.remainingMs),
+      remaining: statusRemaining(s),
     }));
 }
 const targetStatuses = computed(() => (hit.value ? statusLines(hit.value.targetStatuses, "target", hit.value.mitigation) : []));

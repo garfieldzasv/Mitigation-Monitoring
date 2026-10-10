@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import type { DamageRow, DeathRow, Row } from "@/core/engine/types";
-import { statusIconId } from "@/core/game/statuses";
+import { isAuraStatus, statusIconId } from "@/core/game/statuses";
 import { buildDeathReplay, DEFAULT_REPLAY_WINDOW_MS } from "@/core/replay/deathReplay";
 import type { ReplayDetail, StatusChange } from "@/core/replay/detail";
 import type { StatusCategory } from "@/core/status/statusTracker";
@@ -163,7 +163,7 @@ const lines = computed<Line[]>(() => {
         lost.push(c.status.name);
         return;
       }
-      const seconds = Number.isFinite(c.durationMs) ? `${Math.round(c.durationMs / 1000)} 秒` : "常驻";
+      const seconds = isAuraStatus(c.status.id, c.source.id) ? "光环" : Number.isFinite(c.durationMs) ? `${Math.round(c.durationMs / 1000)} 秒` : "常驻";
       const note =
         c.change === "gain" || c.change === "refresh"
           ? ` · ${seconds}`
@@ -281,7 +281,7 @@ function blowLine(b: DamageRow): string {
             :style="{ color: mitigationColor(mitigationPercent(replay.blow.multiplier)) }"
             :title="mitigationTitle(replay.blow.mitigation, replay.blow.multiplier, replay.blow.multiplierPartial, replay.blow.damageType)"
           >减伤 {{ formatMitigation(replay.blow.multiplier, replay.blow.multiplierPartial) }}</span>
-          <StatusChips :target="replay.blow.targetStatuses" :source="replay.blow.sourceStatuses" :terms="replay.blow.mitigation" :max="12" />
+          <StatusChips :target="replay.blow.targetStatuses" :source="replay.blow.sourceStatuses" :terms="replay.blow.mitigation" :max="12" auras />
         </div>
         <div v-else-if="death.cause === 'terrain'" class="blow">
           <span class="label warn">地形杀</span>

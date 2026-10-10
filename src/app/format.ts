@@ -1,6 +1,7 @@
 /** Display formatting shared by the monitor and the review window. Pure functions, no Vue. */
 import type { Phase } from "@/core/engine/phases";
 import type { DamageRow, DeathRow } from "@/core/engine/types";
+import { isAuraStatus } from "@/core/game/statuses";
 import type { DamageType } from "@/core/logline/effect";
 import { vulnerabilityFactor, vulnerabilityTerms, type MitigationTerm } from "@/core/mitigation/multiplier";
 import { inSharedGroup, isGroupRow } from "@/core/replay/shieldLines";
@@ -230,6 +231,11 @@ function remainingTenths(ms: number): number {
 /** The whole seconds on a status icon (under a minute): rounded up, as the game counts down. */
 export function remainingSeconds(ms: number): number {
   return Math.ceil(remainingTenths(ms) / 10);
+}
+
+/** A status's time left at a hit; `光环` for a player's aura (docs/DESIGN.md 5.4), which has none of its own. */
+export function statusRemaining(s: { id: number; remainingMs: number; sourceId: string }): string {
+  return isAuraStatus(s.id, s.sourceId) ? "光环" : formatRemaining(s.remainingMs);
 }
 
 /** A status's time left: `8.7 秒` under a minute (rounded up), `53:23` from there (food lasts an hour), `常驻` if it never ends. */

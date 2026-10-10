@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { statusIconId } from "@/core/game/statuses";
+import { isAuraStatus, statusIconId } from "@/core/game/statuses";
 import { termApplies, type MitigationTerm } from "@/core/mitigation/multiplier";
 import type { StatusCategory, StatusSnap } from "@/core/status/statusTracker";
 import GameIcon from "../common/GameIcon.vue";
@@ -14,9 +14,10 @@ import { formatRemaining, remainingSeconds } from "../../format";
  * a row is 22px, so it sits on the icon rather than under it). Borrowed from a same-name actor (5.4)
  * is said in the tooltip only. A reduction that does not apply to this hit (wrong damage type, or
  * overlapped by a stronger one of its group) is greyed out, its time too. At most `max` slots: past
- * that, `max − 1` icons and +N.
+ * that, `max − 1` icons and +N. With `auras` (the review window), a player's aura (5.4) has no time of its own: no
+ * figure, 光环 in the tooltip.
  */
-const props = withDefaults(defineProps<{ target: StatusSnap[]; source: StatusSnap[]; terms?: MitigationTerm[]; max?: number }>(), {
+const props = withDefaults(defineProps<{ target: StatusSnap[]; source: StatusSnap[]; terms?: MitigationTerm[]; max?: number; auras?: boolean }>(), {
   terms: () => [],
   max: 5,
 });
@@ -36,7 +37,7 @@ interface Chip {
   key: string;
   icon: number;
   text: string;
-  /** Time left at the hit, short: `12` seconds, `53m`, `∞` for one that does not run out (permanent in the game data). */
+  /** Time left at the hit, short: `12` seconds, `53m`, `∞` for one that does not run out (permanent in the game data), none for an aura's. */
   time: string;
   category: StatusCategory;
   inactive: boolean;
@@ -58,13 +59,14 @@ const chips = computed<Chip[]>(() => {
   });
   const chips = unique.map(({ s, side }) => {
     const inactive = !termApplies(termOf.get(`${side}:${s.id}`));
-    const remaining = formatRemaining(s.remainingMs);
-    const notes = [LABEL[s.category], s.sourceName || "?", `剩余 ${remaining}`, s.inherited ? "继承自 Boss 本体" : "", inactive ? "对这次伤害不生效" : ""];
+    const aura = props.auras && isAuraStatus(s.id, s.sourceId);
+    const remaining = aura ? "光环" : `剩余 ${formatRemaining(s.remainingMs)}`;
+    const notes = [LABEL[s.category], s.sourceName || "?", remaining, s.inherited ? "继承自 Boss 本体" : "", inactive ? "对这次伤害不生效" : ""];
     return {
       key: `${s.category}:${s.id}`,
       icon: statusIconId(s.id, s.stacks),
       text: s.name.slice(0, 1),
-      time: shortRemaining(s),
+      time: aura ? "" : shortRemaining(s),
       category: s.category,
       inactive,
       title: `${s.name}${s.stacks > 1 ? ` ×${s.stacks}` : ""}（${notes.filter(Boolean).join("，")}）`,

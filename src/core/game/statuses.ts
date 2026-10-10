@@ -1,5 +1,6 @@
 import statuses from "@/data/generated/statuses.json";
 import { DEALT_MITIGATION, TAKEN_MITIGATION } from "@/data/mitigation";
+import { isPlayerId } from "../combatants/registry";
 import type { StatusCategory, StatusSide } from "../status/statusTracker";
 
 /**
@@ -39,6 +40,20 @@ const PERMANENT: ReadonlySet<number> = new Set(statuses.permanent);
 
 export function isPermanentStatus(id: number): boolean {
   return PERMANENT.has(id);
+}
+
+/**
+ * Of those, the ones that run out unless the game re-sends them (import-game-data.ts): an aura or a ground effect keeps
+ * them on whoever is in range, every 3 s. A duty's mechanics can be this too (拘束).
+ */
+const AURAS: ReadonlySet<number> = new Set(statuses.auras);
+
+/**
+ * A player's aura or ground effect (节制's 1873, 野战治疗阵's 299, a bard's song): 光环 (docs/DESIGN.md 5.4), with no time
+ * of its own on the player who has it — players walk in and out.
+ */
+export function isAuraStatus(id: number, sourceId: string): boolean {
+  return AURAS.has(id) && isPlayerId(sourceId);
 }
 
 /** Statuses some action needs to be used (神爱抚预备 for 神爱抚; import-game-data.ts). */
