@@ -200,7 +200,7 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
             <span class="num dim">{{ formatClock(r.offset) }}</span>
             <span class="sname">{{ r.action.name }}</span>
             <span class="num">{{ r.amount.toLocaleString() }}</span>
-            <span class="dim">{{ verdictLabel(r) }}</span>
+            <span class="dim verdict">{{ verdictLabel(r) }}</span>
           </li>
         </ul>
         <p class="dim">
@@ -333,8 +333,12 @@ ul {
 .cast.same li {
   grid-template-columns: 16px minmax(0, 1fr) 64px 96px 40px;
 }
+/* 判定 as wide as the damage table's, for "格挡·全吸收" on one line. */
 .cast.group li {
-  grid-template-columns: 40px minmax(0, 1fr) 64px 56px;
+  grid-template-columns: 40px minmax(0, 1fr) 64px 76px;
+}
+.cast.group .verdict {
+  white-space: nowrap;
 }
 .pre {
   white-space: pre-line;

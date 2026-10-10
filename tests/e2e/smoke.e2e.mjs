@@ -447,6 +447,32 @@ try {
   check("review: list title and AOE cells stay on one line", titleHeight <= 34 && tallCells.length === 0, wrapped);
   await reviewShot("aoe");
 
+  // Nor the 判定 of the detail's 同组受击: a hit whose group has a 格挡·全吸收 in it (the hunt has one). The table's
+  // min-damage filter, left on from the deaths above, comes off first.
+  await review.evaluate("document.querySelector('.tab[data-tab=damage]').click(); true");
+  await sleep(400);
+  await review.evaluate("document.querySelector('.tabs .trigger').click(); true");
+  await sleep(200);
+  await review.evaluate("(() => { const i = document.querySelector('.popover-panel input[type=number]'); i.value = ''; i.dispatchEvent(new Event('change')); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); return true; })()");
+  await sleep(300);
+  const groupVerdicts = await review.evaluate(`(async () => {
+    const body = document.querySelector('.table .body');
+    for (let top = 0; top < body.scrollHeight; top += body.clientHeight) {
+      body.scrollTop = top;
+      await new Promise((r) => setTimeout(r, 50));
+      for (const row of document.querySelectorAll('.table .row')) {
+        if (!row.querySelector('.c-verdict')?.textContent.includes('·')) continue;
+        row.click();
+        await new Promise((r) => setTimeout(r, 100));
+        const spans = [...document.querySelectorAll('.detail .cast.group li > span:last-child')];
+        if (spans.some((s) => s.textContent.includes('·'))) return JSON.stringify(spans.map((s) => ({ text: s.textContent.trim(), height: s.scrollHeight })));
+      }
+    }
+    return '[]';
+  })()`);
+  const groupLines = JSON.parse(groupVerdicts);
+  check("detail: 同组受击's 判定 stays on one line (格挡·全吸收)", groupLines.some((v) => v.text.includes("·")) && groupLines.every((v) => v.height <= 22), groupVerdicts);
+
   // Statistics, and a name leading to the damage table filtered to it.
   await review.evaluate("document.querySelector('.tab[data-tab=stats]').click(); true");
   await sleep(400);
