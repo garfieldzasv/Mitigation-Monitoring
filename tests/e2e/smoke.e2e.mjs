@@ -58,6 +58,8 @@ const mockCombatants = [self[2], ...partyIds.filter((id) => id !== self[2])].map
 mockCombatants.push({ ID: 0x400117e3, OwnerID: 0, Type: 2, PartyType: 0, Job: 0, Level: 100, Name: "护锁刃龙" });
 
 // ---------- browser ----------
+/** E2E_SCALE: the display scaling to render at (1.25 for Windows at 125 %); the overlay itself renders at 1 in ACT. */
+const SCALE = Number(process.env.E2E_SCALE ?? 1);
 // Port 0 lets Chrome pick a free port (written to DevToolsActivePort in its profile).
 const profileDir = mkdtempSync(join(tmpdir(), "cdp-"));
 const chrome = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -97,7 +99,7 @@ async function openTab(url, w, h, injectScript = "") {
   });
   const send = (method, params = {}) => new Promise((r) => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
   await send("Runtime.enable");
-  await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+  await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: SCALE, mobile: false });
   await send("Page.enable");
   if (injectScript) await send("Page.addScriptToEvaluateOnNewDocument", { source: injectScript });
   await send("Page.navigate", { url });
@@ -110,7 +112,7 @@ async function openTab(url, w, h, injectScript = "") {
     await front();
     writeFileSync(path, Buffer.from((await send("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
   };
-  const resize = (width, height) => send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+  const resize = (width, height) => send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: SCALE, mobile: false });
   /** What picking files in a file chooser does. */
   const setFiles = async (selector, files) => {
     const root = (await send("DOM.getDocument", {})).result.root;
