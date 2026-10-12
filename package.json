@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "typecheck": "vue-tsc --noEmit",
     "e2e": "vite build && node tests/e2e/smoke.e2e.mjs",
+    "screenshots": "vite build && node tests/e2e/screenshots.mjs",
     "make-fixture": "tsx scripts/make-fixture.ts",
     "copy-icons": "tsx scripts/copy-icons.ts",
     "release": "tsx scripts/release.ts",
