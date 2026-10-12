@@ -310,6 +310,33 @@ try {
   await sleep(300);
   const deathDetail = await review.evaluate("document.querySelector('.detail')?.textContent ?? ''");
   check("review: a death row opens its detail with the killing blow", /受到源自「.+」的「.+」伤害而死亡了/.test(deathDetail) && deathDetail.includes("死亡前最后"), deathDetail.replace(/\s+/g, " ").slice(0, 70));
+  // The hits before it say what each column is, in full, and which one killed. Each heading's text lines up with its
+  // column's: the name on the left, the time and the figures on the right.
+  const lastHits = JSON.parse(
+    await review.evaluate(`(() => {
+      const heads = [...document.querySelectorAll('.detail .cast.before li.head span')];
+      const cells = [...document.querySelectorAll('.detail .cast.before li:not(.head)')[0].children];
+      const text = (e) => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect(); };
+      const edges = heads.map((h, i) => (i === 1 ? [text(h).left, text(cells[i]).left] : [text(h).right, text(cells[i]).right]).map(Math.round));
+      return JSON.stringify({
+        heads: heads.map((s) => s.textContent.trim()),
+        cut: heads.filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent.trim()),
+        rows: document.querySelectorAll('.detail .cast.before li:not(.head)').length,
+        killer: document.querySelector('.detail .cast.before li.current')?.title ?? '',
+        edges,
+      });
+    })()`),
+  );
+  check(
+    "review: a death's last hits are headed 时间, 伤害名称, 伤害, 受击前 HP, 减伤, lined up with their columns, the killing blow marked",
+    JSON.stringify(lastHits.heads) === '["时间","伤害名称","伤害","受击前 HP","减伤"]' &&
+      lastHits.cut.length === 0 &&
+      lastHits.rows > 0 &&
+      lastHits.killer === "致命一击" &&
+      lastHits.edges.every(([head, cell]) => Math.abs(head - cell) <= 1),
+    JSON.stringify(lastHits),
+  );
+  if (process.env.E2E_SCREENSHOTS) await review.screenshot(join(process.env.E2E_SCREENSHOTS, "review-death.png"));
   await review.evaluate("document.querySelector('.detail .link')?.click(); true");
   await sleep(300);
   const hitDetail = await review.evaluate("document.querySelector('.detail')?.textContent ?? ''");

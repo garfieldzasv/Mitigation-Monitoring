@@ -232,18 +232,29 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
       <section>
         <h3>死亡前最后 {{ before.length }} 次受击</h3>
         <ul class="cast before">
+          <li class="head">
+            <span class="r" title="战斗时间">时间</span>
+            <span>伤害名称</span>
+            <span class="r" title="扣掉盾之后实际掉的血">伤害</span>
+            <span class="r" title="这一下打中之前的 HP，占最大 HP 的比例">受击前 HP</span>
+            <span class="r" title="这一下打中时的减伤率">减伤</span>
+          </li>
           <li
             v-for="r in before"
             :key="r.id"
             :class="{ current: r.id === death.killerRowId, none: r.noEffect }"
-            :title="r.noEffect ? '这次伤害未生效' : undefined"
+            :title="r.noEffect ? '这次伤害未生效' : r.id === death.killerRowId ? '致命一击' : undefined"
             @click="emit('select', r.id)"
           >
             <span class="num dim">{{ formatClock(r.offset) }}</span>
             <span class="sname">{{ r.action.name }}</span>
-            <span class="num">{{ r.amount.toLocaleString() }}</span>
-            <span class="num dim">{{ r.noEffect ? "未生效" : percentOfMax(r.hpBefore, r.maxHp) }}</span>
-            <span class="num">{{ r.noEffect ? "—" : formatMitigation(r.multiplier, r.multiplierPartial) }}</span>
+            <span class="num" :title="`占最大 HP ${percentOfMax(r.amount, r.maxHp)}`">{{ r.amount.toLocaleString() }}</span>
+            <span class="num dim" :title="r.noEffect ? undefined : `受击前 ${r.hpBefore.toLocaleString()}　最大 ${r.maxHp.toLocaleString()}`">{{
+              r.noEffect ? "未生效" : percentOfMax(r.hpBefore, r.maxHp)
+            }}</span>
+            <span class="num" :title="r.noEffect ? undefined : mitigationTitle(r.mitigation, r.multiplier, r.multiplierPartial, r.damageType)">{{
+              r.noEffect ? "—" : formatMitigation(r.multiplier, r.multiplierPartial)
+            }}</span>
           </li>
         </ul>
         <p><button class="link" @click="emit('open-death', death.id)">在死亡回放里查看（治疗、状态变化、HP 曲线）</button></p>
@@ -343,8 +354,9 @@ ul {
 .pre {
   white-space: pre-line;
 }
+/* 受击前 HP as wide as its heading. */
 .cast.before li {
-  grid-template-columns: 40px minmax(0, 1fr) 64px 36px 40px;
+  grid-template-columns: 40px minmax(0, 1fr) 64px 56px 40px;
 }
 .rem {
   text-align: right;
@@ -408,6 +420,19 @@ ul {
 }
 .cast li.current {
   background: rgba(108, 182, 255, 0.18);
+}
+/* A list's headings: what each column is, lined up with its values (the time and the figures to the right). */
+.cast li.head {
+  height: 18px;
+  cursor: default;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.cast li.head:hover {
+  background: none;
+}
+.cast li.head .r {
+  text-align: right;
 }
 .cast li.none {
   color: var(--text-dim);
