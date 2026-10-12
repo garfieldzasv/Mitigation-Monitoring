@@ -234,7 +234,7 @@ function deathTitle(r: DeathRow): string {
         <template v-if="r.kind === 'death'">
           <span class="c-death" :title="deathTitle(r)">
             <span class="death-text"><UiIcon name="death" class="skull" /> {{ deathText(r) }}</span>
-            <button class="open small" title="在复盘窗口里看这次死亡的回放" @click="emit('open-review', r.id)">回放</button>
+            <button class="open mini" title="在复盘窗口里看这次死亡的回放" @click="emit('open-review', r.id)">回放</button>
           </span>
         </template>
         <template v-else>
