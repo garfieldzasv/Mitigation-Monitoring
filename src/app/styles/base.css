@@ -68,7 +68,12 @@ button.link {
   padding: 0;
   color: var(--accent);
 }
-/* The monitor's small buttons (复盘, settings, a death row's 回放): one height whether they hold text or an icon. */
+/*
+ * The monitor's small buttons (复盘, settings, a death row's 回放): one height whether they hold text or an icon. The
+ * line is the height inside the frame: centring a shorter line box centres the font's box, and Microsoft YaHei's runs
+ * 3px below the baseline at 11px where a 汉字 reaches 1px, so the text sat 1.5px high (1px above, 4px below); this way
+ * it is 2px above, 3px below.
+ */
 button.small {
   display: inline-flex;
   align-items: center;
@@ -76,7 +81,7 @@ button.small {
   height: 18px;
   padding: 0 6px;
   font-size: 11px;
-  line-height: 1;
+  line-height: 16px;
 }
 
 input {

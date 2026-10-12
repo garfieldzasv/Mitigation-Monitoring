@@ -497,15 +497,32 @@ try {
   await monitor.evaluate("(() => { const i = document.querySelector('.popover-panel input[type=number]'); i.value = '999999999'; i.dispatchEvent(new Event('change')); return true; })()");
   await sleep(300);
   // 复盘, the settings button and a death row's 回放 are one kind of button: as tall, framed alike; the first two level.
+  // A text's ink (the font's metrics from its line box) about as far from the frame above as below.
   const monitorButtons = JSON.parse(
-    await monitor.evaluate(
-      "JSON.stringify(['.bar .review', '.bar .gear', '.body .row.death .open'].map((s) => { const e = document.querySelector(s); const r = e.getBoundingClientRect(); return { text: e.textContent.trim(), height: r.height, middle: r.top + r.height / 2, border: getComputedStyle(e).borderTopWidth }; }))",
-    ),
+    await monitor.evaluate(`JSON.stringify(['.bar .review', '.bar .gear', '.body .row.death .open'].map((s) => {
+      const e = document.querySelector(s);
+      const r = e.getBoundingClientRect();
+      const cs = getComputedStyle(e);
+      const out = { text: e.textContent.trim(), height: r.height, middle: r.top + r.height / 2, border: cs.borderTopWidth };
+      if (!out.text) return out;
+      const range = document.createRange();
+      range.selectNodeContents(e);
+      const box = range.getBoundingClientRect();
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = cs.fontSize + ' ' + cs.fontFamily;
+      const m = ctx.measureText(out.text);
+      const baseline = box.top + m.fontBoundingBoxAscent;
+      const border = parseFloat(cs.borderTopWidth);
+      return { ...out, above: baseline - m.actualBoundingBoxAscent - (r.top + border), below: r.bottom - border - (baseline + m.actualBoundingBoxDescent) };
+    }))`),
   );
   const [reviewButton, gearButton, replayButton] = monitorButtons;
   check(
-    "monitor: 复盘, settings and a death row's 回放 are buttons of one height, the first two level",
-    replayButton.text === "回放" && new Set(monitorButtons.map((b) => `${b.height}|${b.border}`)).size === 1 && Math.abs(reviewButton.middle - gearButton.middle) < 0.5,
+    "monitor: 复盘, settings and a death row's 回放 are buttons of one height, the first two level, their text centred",
+    replayButton.text === "回放" &&
+      new Set(monitorButtons.map((b) => `${b.height}|${b.border}`)).size === 1 &&
+      Math.abs(reviewButton.middle - gearButton.middle) < 0.5 &&
+      [reviewButton, replayButton].every((b) => Math.abs(b.above - b.below) <= 1),
     JSON.stringify(monitorButtons),
   );
   await monitor.evaluate("document.querySelector('.body .row.death .open').click(); true", true);
