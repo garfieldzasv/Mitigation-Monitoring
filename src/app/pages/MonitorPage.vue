@@ -21,7 +21,7 @@ const { engine, version, isArchived } = useLiveEngine();
 const filterState = useMonitorFilter();
 const { filter, count } = filterState;
 
-/** Opens the review window on the shown encounter; a death's [回放] opens that death's replay. */
+/** Opens the review window on the shown encounter; a death's 回放 opens that death's replay. */
 function openReview(deathRowId?: number): void {
   const e = encounter.value;
   openReviewWindow(e ? { encounter: archiveIdOf(e.start), ...(deathRowId ? { tab: "deaths", row: deathRowId } : {}) } : {});
@@ -94,8 +94,8 @@ const look = computed(() => ({ "--panel-alpha": String(settings.value.opacity), 
         <template #trigger>筛选{{ count > 0 ? ` ${count}` : "" }} ▾</template>
         <MoreFilters :state="filterState" />
       </PopoverMenu>
-      <button class="review" title="打开复盘窗口" @click="openReview()">复盘</button>
-      <button class="gear" title="设置（也可以在窗口里点右键）" aria-label="设置" @click="openSettingsWindow()"><UiIcon name="gear" /></button>
+      <button class="review small" title="打开复盘窗口" @click="openReview()">复盘</button>
+      <button class="gear small" title="设置（也可以在窗口里点右键）" aria-label="设置" @click="openSettingsWindow()"><UiIcon name="gear" /></button>
     </div>
     <MonitorGrid
       :rows="shown"
@@ -154,12 +154,6 @@ const look = computed(() => ({ "--panel-alpha": String(settings.value.opacity), 
 .spacer {
   flex: 1;
 }
-.review,
-.gear {
-  padding: 0 6px;
-  font-size: 11px;
-  line-height: 16px;
-}
 .gear {
   padding: 0 4px;
 }
@@ -167,10 +161,6 @@ const look = computed(() => ({ "--panel-alpha": String(settings.value.opacity), 
   display: inline-flex;
   align-items: center;
   gap: 3px;
-}
-.gear {
-  display: inline-flex;
-  align-items: center;
 }
 .phase-tag {
   font-size: 11px;

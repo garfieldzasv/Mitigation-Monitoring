@@ -68,6 +68,16 @@ button.link {
   padding: 0;
   color: var(--accent);
 }
+/* The monitor's small buttons (复盘, settings, a death row's 回放): one height whether they hold text or an icon. */
+button.small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 1;
+}
 
 input {
   font: inherit;

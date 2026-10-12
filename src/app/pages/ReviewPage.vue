@@ -30,9 +30,9 @@ import { openSettingsWindow } from "../settingsWindow";
  *
  * Where it is lives in the URL, `#/review?enc=<archive id>&tab=<tab>&row=<row id>` (`row`: the
  * selected row of the damage table, or the death being replayed). The monitor opens this window by
- * name, so once it is open, a [回放] only changes the URL; the page follows the route rather than
+ * name, so once it is open, a 回放 only changes the URL; the page follows the route rather than
  * reading it once. Moves made inside the window write the URL too, so it never goes stale and the
- * next [回放] always lands.
+ * next 回放 always lands.
  */
 const archive = useReviewArchive();
 const { list, sessions, selectedId, loaded, loading, error } = archive;

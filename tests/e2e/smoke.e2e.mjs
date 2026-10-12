@@ -491,17 +491,27 @@ try {
   await sleep(1500);
   const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
   check("monitor: 复盘 opens the review window on this encounter", targets.some((t) => /#\/review\?enc=e\d+/.test(t.url)), targets.map((t) => t.url.split("#")[1]).join(" | "));
-  // A death row's [回放] opens that death's replay (deaths only, via the min-damage filter).
+  // A death row's 回放 opens that death's replay (deaths only, via the min-damage filter).
   await monitor.evaluate("[...document.querySelectorAll('.bar .trigger')].at(-1).click(); true");
   await sleep(200);
   await monitor.evaluate("(() => { const i = document.querySelector('.popover-panel input[type=number]'); i.value = '999999999'; i.dispatchEvent(new Event('change')); return true; })()");
   await sleep(300);
-  const replayLink = await monitor.evaluate("document.querySelector('.body .row.death .open')?.textContent.trim() ?? ''");
-  check("monitor: a death row links to its replay as [回放]", replayLink === "[回放]", replayLink);
+  // 复盘, the settings button and a death row's 回放 are one kind of button: as tall, framed alike; the first two level.
+  const monitorButtons = JSON.parse(
+    await monitor.evaluate(
+      "JSON.stringify(['.bar .review', '.bar .gear', '.body .row.death .open'].map((s) => { const e = document.querySelector(s); const r = e.getBoundingClientRect(); return { text: e.textContent.trim(), height: r.height, middle: r.top + r.height / 2, border: getComputedStyle(e).borderTopWidth }; }))",
+    ),
+  );
+  const [reviewButton, gearButton, replayButton] = monitorButtons;
+  check(
+    "monitor: 复盘, settings and a death row's 回放 are buttons of one height, the first two level",
+    replayButton.text === "回放" && new Set(monitorButtons.map((b) => `${b.height}|${b.border}`)).size === 1 && Math.abs(reviewButton.middle - gearButton.middle) < 0.5,
+    JSON.stringify(monitorButtons),
+  );
   await monitor.evaluate("document.querySelector('.body .row.death .open').click(); true", true);
   await sleep(1500);
   const afterDeath = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-  check("monitor: a death's [回放] opens its death replay", afterDeath.some((t) => /#\/review\?enc=e\d+&tab=deaths&row=\d+/.test(t.url)), afterDeath.map((t) => t.url.split("#")[1]).join(" | "));
+  check("monitor: a death's 回放 opens its death replay", afterDeath.some((t) => /#\/review\?enc=e\d+&tab=deaths&row=\d+/.test(t.url)), afterDeath.map((t) => t.url.split("#")[1]).join(" | "));
   await monitor.evaluate("[...document.querySelectorAll('.popover-panel button')].find((b) => b.textContent.includes('清空全部过滤'))?.click(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); true");
   await sleep(300);
 
