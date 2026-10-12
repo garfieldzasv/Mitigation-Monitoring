@@ -502,6 +502,49 @@ try {
   const groupLines = JSON.parse(groupVerdicts);
   check("detail: 同组受击's 判定 stays on one line (格挡·全吸收)", groupLines.some((v) => v.text.includes("·")) && groupLines.every((v) => v.height <= 22), groupVerdicts);
 
+  // Every table's headings line up with their columns: a heading's text with its column's first row, on the side the
+  // column's values sit (the times and figures right, names left), within 1 px.
+  const ALIGNMENT = `((headSel, rowSel) => {
+    const head = document.querySelector(headSel);
+    const row = document.querySelector(rowSel);
+    if (!head || !row) return ['missing ' + headSel + ' / ' + rowSel];
+    const box = (e) => { const r = document.createRange(); r.selectNodeContents(e); const b = r.getBoundingClientRect(); return b.width ? b : e.getBoundingClientRect(); };
+    const side = (e) => {
+      const cs = getComputedStyle(e);
+      const a = cs.display.includes('flex') ? cs.justifyContent : cs.textAlign;
+      return a.includes('end') || a === 'right' ? 'right' : a === 'center' ? 'center' : 'left';
+    };
+    const off = [];
+    [...head.children].forEach((h, i) => {
+      const c = row.children[i];
+      if (!c || !h.textContent.trim() || (!c.textContent.trim() && !c.querySelector('img,svg'))) return;
+      const s = side(c);
+      const hb = box(h);
+      const cb = box(c);
+      const d = s === 'right' ? hb.right - cb.right : s === 'center' ? (hb.left + hb.right - cb.left - cb.right) / 2 : hb.left - cb.left;
+      if (Math.abs(d) > 1) off.push(headSel + ' ' + h.textContent.trim() + ' ' + Math.round(d) + 'px');
+    });
+    return off;
+  })`;
+  const misaligned = [];
+  const headings = async (page, headSel, rowSel) => misaligned.push(...(await page.evaluate(`${ALIGNMENT}(${JSON.stringify(headSel)}, ${JSON.stringify(rowSel)})`)));
+  await headings(review, ".table .head", ".table .row:not(.death)");
+  await headings(monitor, ".head", ".body .row:not(.death)");
+  await review.evaluate("document.querySelector('.detail .close')?.click(); document.querySelector('.tab[data-tab=aoe]').click(); true");
+  await sleep(400);
+  await review.evaluate("document.querySelector('.groups .g:not(.head)')?.click(); true");
+  await sleep(300);
+  await headings(review, ".groups .g.head", ".groups .g:not(.head)");
+  await headings(review, ".members .m.head", ".members .m:not(.head)");
+  await review.evaluate("document.querySelector('.tab[data-tab=deaths]').click(); true");
+  await sleep(500);
+  await headings(review, ".events .line.head", ".events .line.fatal");
+  await review.evaluate("document.querySelector('.tab[data-tab=stats]').click(); true");
+  await sleep(400);
+  await headings(review, ".mrow.head", ".mrow:not(.head)");
+  await headings(review, ".arow.head", ".arow:not(.head)");
+  check("review and monitor: every table's headings line up with their columns", misaligned.length === 0, misaligned.join(" | "));
+
   // Statistics, and a name leading to the damage table filtered to it.
   await review.evaluate("document.querySelector('.tab[data-tab=stats]').click(); true");
   await sleep(400);

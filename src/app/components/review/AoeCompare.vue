@@ -105,7 +105,7 @@ function verdict(r: DamageRow): string {
       </div>
       <div class="list" :class="{ 'with-phase': withPhase }">
         <div class="g head">
-          <span>时间</span>
+          <span class="r">时间</span>
           <span v-if="withPhase">阶段</span>
           <span>技能</span>
           <span>来源</span>
