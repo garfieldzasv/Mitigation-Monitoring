@@ -9,7 +9,7 @@ import { useSettings } from "../composables/useSettings";
  * follows without a reload.
  */
 const { settings, update, reset } = useSettings();
-onMounted(() => (document.title = "设置 · 小队受伤记录"));
+onMounted(() => (document.title = "设置 · 小队减伤监控"));
 
 const opacityPercent = computed(() => Math.round(settings.value.opacity * 100));
 
