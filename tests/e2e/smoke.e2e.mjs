@@ -412,7 +412,7 @@ try {
   check("death replay: clicking the killing blow opens its detail", fatalDetail.includes("减伤明细"), fatalDetail.replace(/\s+/g, " ").slice(0, 60));
   await reviewShot("deaths");
 
-  // The monitor opens the review window by name: once open, a ↗ only changes its URL. Choices made
+  // The monitor opens the review window by name: once open, a 复盘 or 回放 only changes its URL. Choices made
   // inside the window are written to the URL, and the window follows URL changes.
   const selectedDeath = () => review.evaluate("[...document.querySelectorAll('.death-list li')].findIndex((li) => li.classList.contains('selected'))");
   await review.evaluate("document.querySelectorAll('.death-list li')[0].click(); true");
@@ -424,7 +424,7 @@ try {
   check("review: picking a death writes it to the URL", /tab=deaths/.test(thirdDeathUrl) && /row=\d+/.test(thirdDeathUrl) && thirdDeathUrl !== firstDeathUrl && (await selectedDeath()) === 2, thirdDeathUrl);
   await review.evaluate(`location.hash = ${JSON.stringify(firstDeathUrl)}; true`);
   await sleep(500);
-  check("review: an open window follows a new URL (a second ↗)", (await selectedDeath()) === 0, `${await selectedDeath()}`);
+  check("review: an open window follows a new URL (a second 回放)", (await selectedDeath()) === 0, `${await selectedDeath()}`);
   await review.evaluate("location.hash = '#/review?enc=e1&tab=deaths&row=3'; true");
   await sleep(500);
   const missingText = await review.evaluate("document.querySelector('.error')?.textContent ?? ''");
