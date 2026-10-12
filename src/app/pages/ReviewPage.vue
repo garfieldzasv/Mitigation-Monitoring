@@ -198,7 +198,6 @@ const onlyPhase = computed(() => {
 /** A phase chip: the damage table showing only that stretch 在场 (again: all of them). */
 function showPhase(label: string): void {
   filterState.update({ hiddenPhases: onlyPhase.value === label ? [] : inPlay.value.map((p) => p.label).filter((x) => x !== label) });
-  if (tab.value !== "damage") go({ tab: "damage", row: undefined });
 }
 /** The timeline's lanes; computed only while the timeline tab shows them. */
 const timeline = computed(() => {
@@ -265,18 +264,6 @@ const header = computed(() => {
           <span class="deaths" title="死亡次数"><UiIcon name="death" /> {{ header.deaths }}</span>
         </div>
         <div v-else class="title dim">{{ loading ? "读取中…" : "选择左边的一场战斗" }}</div>
-        <div v-if="loaded && inPlay.length > 1" class="phases">
-          <button
-            v-for="p in inPlay"
-            :key="p.label"
-            class="phase-chip num"
-            :class="{ on: onlyPhase === p.label }"
-            :title="`${phaseSpan(p, loaded.meta.start, phaseEnd)}\n点击：受伤明细只看这一段在场的时间，再点一次恢复`"
-            @click="showPhase(p.label)"
-          >
-            {{ p.label }}
-          </button>
-        </div>
         <div class="top-actions">
           <CalcNotes />
           <button class="gear" title="设置" aria-label="设置" @click="openSettingsWindow()"><UiIcon name="gear" :size="13" /></button>
@@ -304,17 +291,31 @@ const header = computed(() => {
         <div v-if="error" class="error">{{ error }}</div>
       </div>
       <div class="content">
-        <DamageTable
-          v-if="tab === 'damage'"
-          :rows="shown"
-          :by-id="loaded?.byId ?? new Map()"
-          :options="options"
-          :selected-id="selectedRowId"
-          :scroll-to="scrollToId"
-          :self-id="loaded?.selfId"
-          :phase-of="phaseLabelOf"
-          @select="selectRow"
-        />
+        <!-- The stretches 在场 narrow the damage table only, so they sit above it. -->
+        <div v-if="tab === 'damage'" class="damage-tab">
+          <div v-if="loaded && inPlay.length > 1" class="phases">
+            <button
+              v-for="p in inPlay"
+              :key="p.label"
+              class="phase-chip num"
+              :class="{ on: onlyPhase === p.label }"
+              :title="`${phaseSpan(p, loaded.meta.start, phaseEnd)}\n点击：只看这一段在场的时间，再点一次恢复`"
+              @click="showPhase(p.label)"
+            >
+              {{ p.label }}
+            </button>
+          </div>
+          <DamageTable
+            :rows="shown"
+            :by-id="loaded?.byId ?? new Map()"
+            :options="options"
+            :selected-id="selectedRowId"
+            :scroll-to="scrollToId"
+            :self-id="loaded?.selfId"
+            :phase-of="phaseLabelOf"
+            @select="selectRow"
+          />
+        </div>
         <!-- One instance per encounter: their own state (filters, selection) survives the live reloads of a recording. -->
         <template v-else-if="loaded">
           <DeathReplay
@@ -414,11 +415,20 @@ main {
 .live {
   color: var(--ok);
 }
+.damage-tab {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .phases {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
 }
 .phase-chip {
   padding: 0 6px;

@@ -682,6 +682,14 @@ try {
   await review.evaluate("[...document.querySelectorAll('.phases .phase-chip')].at(-1).click(); true");
   await sleep(400);
   check("phases: the same chip again shows every phase", (await review.evaluate("[...document.querySelectorAll('.tabs .num')].map((s) => s.textContent.trim()).join('')")) === allCount);
+  // The chips narrow the damage table only: above its table, not on the other tabs.
+  await review.evaluate("document.querySelector('.tab[data-tab=aoe]').click(); true");
+  await sleep(300);
+  const chipsOnAoe = await review.evaluate("document.querySelectorAll('.phase-chip').length");
+  await review.evaluate("document.querySelector('.tab[data-tab=damage]').click(); true");
+  await sleep(300);
+  const aboveTable = await review.evaluate("!!document.querySelector('.damage-tab > .phases + .table')");
+  check("phases: the chips show on 受伤明细 only, above its table", chipsOnAoe === 0 && aboveTable, `${chipsOnAoe} on AOE 对比, above the table ${aboveTable}`);
   if (process.env.E2E_SCREENSHOTS) {
     await review.screenshot(join(process.env.E2E_SCREENSHOTS, "review-phases.png"));
     await monitor.screenshot(join(process.env.E2E_SCREENSHOTS, "monitor-phases.png"));
