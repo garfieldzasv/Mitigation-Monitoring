@@ -1,6 +1,7 @@
 :root {
   --font: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", sans-serif;
-  --mono: "Cascadia Mono", Consolas, "Noto Sans Mono", monospace;
+  /* The Chinese in a figure (8 人, 未生效) in the UI's font: the generic monospace has it in 新宋体. */
+  --mono: "Cascadia Mono", Consolas, "Noto Sans Mono", "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", monospace;
   --text: #e8e8e8;
   --text-dim: #9aa0a6;
   /* The monitor's background: this colour at the opacity set in the settings (--panel-alpha). */

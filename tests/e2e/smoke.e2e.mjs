@@ -341,6 +341,23 @@ try {
   await sleep(300);
   const hitDetail = await review.evaluate("document.querySelector('.detail')?.textContent ?? ''");
   check("review: the killing blow's detail shows the breakdown and statuses", hitDetail.includes("减伤明细") && hitDetail.includes("受击者状态"), hitDetail.replace(/\s+/g, " ").slice(0, 70));
+  // The hit's figures: headed 数值 / 占最大 HP, each on one line, nothing cut.
+  const figures = JSON.parse(
+    await review.evaluate(`JSON.stringify((() => {
+      const lis = [...document.querySelectorAll('.detail .figures li')];
+      return {
+        heads: lis.length ? [...lis[0].children].map((s) => s.textContent.trim()) : [],
+        labels: lis.filter((li) => !li.className).map((li) => li.firstElementChild.textContent.trim()),
+        tall: lis.filter((li) => !li.className && li.getBoundingClientRect().height > 22).map((li) => li.textContent.trim()),
+        cut: lis.flatMap((li) => [...li.children]).filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent.trim()),
+      };
+    })())`),
+  );
+  check(
+    "review: the hit's figures are headed 数值, 占最大 HP, each on one line, nothing cut",
+    JSON.stringify(figures.heads) === '["","数值","占最大 HP"]' && ["伤害", "受击前 HP", "受击后 HP", "最大 HP", "减伤", "未减伤估算"].every((l) => figures.labels.includes(l)) && figures.tall.length === 0 && figures.cut.length === 0,
+    JSON.stringify(figures),
+  );
   // Category, remaining time and caster sit in fixed columns, the same in both status lists.
   const columns = await review.evaluate(
     "JSON.stringify(['.cat', '.rem', '.src'].map((c) => [...new Set([...document.querySelectorAll('.detail .statuses ' + c)].map((e) => Math.round(e.getBoundingClientRect().left)))]))",
@@ -517,7 +534,7 @@ try {
           const lis = [...document.querySelectorAll('.detail .terms li')];
           const counted = lis.filter((li) => !li.className);
           if (counted.length < 2 || !lis.some((li) => li.classList.contains('out'))) continue;
-          const mit = [...document.querySelectorAll('.detail dt')].find((d) => d.textContent.trim() === '减伤')?.nextElementSibling;
+          const mit = [...document.querySelectorAll('.detail .figures li')].find((li) => li.firstElementChild?.textContent.trim() === '减伤')?.children[1];
           const edges = (sel, side) => [...new Set([...document.querySelectorAll('.detail .terms ' + sel)].map((e) => Math.round(e.getBoundingClientRect()[side])))];
           return JSON.stringify({
             heads: lis.filter((li) => li.classList.contains('head')).map((li) => [...li.children].map((s) => s.textContent.trim())),
@@ -578,6 +595,7 @@ try {
   const misaligned = [];
   const headings = async (page, headSel, rowSel) => misaligned.push(...(await page.evaluate(`${ALIGNMENT}(${JSON.stringify(headSel)}, ${JSON.stringify(rowSel)})`)));
   await headings(review, ".table .head", ".table .row:not(.death)");
+  await headings(review, ".detail .figures li.head", ".detail .figures li:not([class])");
   await headings(review, ".detail .terms li.head", ".detail .terms li:not([class])");
   await headings(review, ".detail .terms li.head ~ li.head", ".detail .terms li.out");
   await headings(monitor, ".head", ".body .row:not(.death)");

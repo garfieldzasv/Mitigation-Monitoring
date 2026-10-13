@@ -29,6 +29,7 @@ import {
   formatUnmitigated,
   shieldAfterOf,
   statusRemaining,
+  unmitigatedRange,
   unmitigatedTitle,
   verdictLabel,
 } from "../../format";
@@ -64,6 +65,60 @@ const shieldSpan = computed(() => {
   if (!r || !g) return undefined;
   const after = shieldAfterOf(r);
   return { before: g.before, after };
+});
+
+/** One of the hit's figures: what, how much, its share of max HP where it has one, and a note under it. */
+interface Figure {
+  label: string;
+  value: string;
+  percent?: string | undefined;
+  title?: string | undefined;
+  crit?: boolean;
+  dim?: boolean;
+  note?: string | undefined;
+}
+/** The hit's figures as a table, so the values and the shares line up. */
+const figures = computed((): Figure[] => {
+  const h = hit.value;
+  if (!h) return [];
+  const pct = (v: number | undefined) => (v === undefined ? undefined : percentOfMax(v, h.maxHp));
+  const out: Figure[] = [{ label: "伤害", value: `${h.amount.toLocaleString()}${h.crit ? "!" : ""}`, percent: pct(h.amount), crit: h.crit }];
+  const g = h.shieldGroup;
+  if (g) {
+    const shield = (v: number | undefined) => (v === undefined ? "?" : v ? `≈${v.toLocaleString()}` : "0");
+    const bound = g.bound === "atLeast" ? "≥" : g.bound === "atMost" ? "≤" : "";
+    out.push(
+      { label: "盾吸收", value: absorbedText(h), percent: g.closed && g.absorbed !== undefined ? `${bound}${pct(g.absorbed)}` : undefined, title: absorbedTitle(h) },
+      { label: "受击前盾量", value: shield(shieldSpan.value?.before), percent: pct(shieldSpan.value?.before) },
+      {
+        label: "受击后盾量",
+        value: shield(shieldSpan.value?.after),
+        percent: pct(shieldSpan.value?.after),
+        note: group.value ? `盾吸收和盾量是同组 ${group.value.members.length} 下的合计` : undefined,
+      },
+    );
+  }
+  if (h.noEffect) out.push({ label: "HP", value: "未生效", dim: true, title: "这次伤害未生效" });
+  else {
+    const after = hpAfterOf(h);
+    out.push(
+      { label: "受击前 HP", value: h.hpBefore.toLocaleString(), percent: pct(h.hpBefore) },
+      after === undefined ? { label: "受击后 HP", value: "不确定", dim: true } : { label: "受击后 HP", value: after.toLocaleString(), percent: pct(after) },
+    );
+  }
+  const e = unmitigatedRange(h);
+  out.push(
+    { label: "最大 HP", value: h.maxHp.toLocaleString() },
+    { label: "减伤", value: formatMitigation(h.multiplier, h.multiplierPartial) },
+    {
+      label: "未减伤估算",
+      value: formatUnmitigated(h) || (h.noEffect ? "未生效" : group.value ? "见同组合计" : "—"),
+      percent: e && e.lo === e.hi ? `${e.dir ?? ""}${pct(e.lo)}` : undefined,
+      note: unmitigatedTitle(h),
+    },
+  );
+  if (h.seq) out.push({ label: "命中", value: `${h.targetCount} 人` });
+  return out;
 });
 
 const blow = computed(() => (death.value ? (props.byId.get(death.value.killerRowId ?? -1) as DamageRow | undefined) : undefined));
@@ -125,43 +180,26 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
     <template v-if="hit">
       <section>
         <h3>{{ hit.action.name }} <span class="dim">← {{ sourceLabel(hit) }}</span></h3>
-        <dl>
-          <dt>伤害</dt>
-          <dd><span :class="{ crit: hit.crit }">{{ hit.amount.toLocaleString() }}{{ hit.crit ? "!" : "" }}</span><span v-if="hit.crit" class="crit"> 暴击</span><span v-if="hit.direct"> 直击</span>　<span class="dim">占最大 HP {{ percentOfMax(hit.amount, hit.maxHp) }}</span></dd>
-          <dt>类型</dt>
-          <dd>
-            {{ damageKindLabel(hit) }}　{{ hit.noEffect ? "未生效" : hit.fullyAbsorbed ? `${hit.result === "hit" ? "" : VERDICT[hit.result] + "，"}被盾全部吸收` : VERDICT[hit.result] }}{{ hit.invulnerable ? "　无敌中" : "" }}
-          </dd>
-          <template v-if="hit.shieldGroup">
-            <dt>盾吸收</dt>
-            <dd :title="absorbedTitle(hit)">
-              {{ absorbedText(hit) }}<span v-if="group" class="dim">（同组 {{ group.members.length }} 下合计）</span>
-            </dd>
-            <dt>盾量</dt>
-            <dd>
-              {{ shieldSpan?.before === undefined ? "?" : shieldSpan.before ? `≈${shieldSpan.before.toLocaleString()}` : "0" }} →
-              {{ shieldSpan?.after === undefined ? "?" : shieldSpan.after ? `≈${shieldSpan.after.toLocaleString()}` : "0" }}
-              <span class="dim">{{ hit.amount > 0 ? `打穿 ${hit.amount.toLocaleString()}` : "未打穿" }}</span>
-            </dd>
+        <div class="kind">
+          {{ damageKindLabel(hit) }} ·
+          {{ hit.noEffect ? "未生效" : hit.fullyAbsorbed ? `${hit.result === "hit" ? "" : VERDICT[hit.result] + "，"}被盾全部吸收` : VERDICT[hit.result]
+          }}<span v-if="hit.crit" class="crit"> · 暴击</span>{{ hit.direct ? " · 直击" : "" }}{{ hit.invulnerable ? " · 无敌中" : "" }}
+        </div>
+        <ul class="figures">
+          <li class="head">
+            <span />
+            <span class="r">数值</span>
+            <span class="r" title="占受击者最大 HP 的比例">占最大 HP</span>
+          </li>
+          <template v-for="f in figures" :key="f.label">
+            <li :title="f.title">
+              <span class="dim">{{ f.label }}</span>
+              <span class="num" :class="{ crit: f.crit, dim: f.dim }">{{ f.value }}</span>
+              <span class="num">{{ f.percent }}</span>
+            </li>
+            <li v-if="f.note" class="note">{{ f.note }}</li>
           </template>
-          <dt>HP</dt>
-          <dd v-if="hit.noEffect" class="dim" title="这次伤害未生效">未生效</dd>
-          <dd v-else>
-            {{ hit.hpBefore.toLocaleString() }}（{{ percentOfMax(hit.hpBefore, hit.maxHp) }}）→
-            <template v-if="hpAfterOf(hit) !== undefined">{{ hpAfterOf(hit)!.toLocaleString() }}（{{ percentOfMax(hpAfterOf(hit), hit.maxHp) }}）</template>
-            <span v-else class="dim">不确定</span>
-            <span class="dim">/ {{ hit.maxHp.toLocaleString() }}</span>
-          </dd>
-          <dt>减伤</dt>
-          <dd>{{ formatMitigation(hit.multiplier, hit.multiplierPartial) }}</dd>
-          <dt>未减伤估算</dt>
-          <dd>
-            {{ formatUnmitigated(hit) || (hit.noEffect ? "未生效" : group ? "见同组合计" : "—") }}
-            <div v-if="unmitigatedTitle(hit)" class="dim pre">{{ unmitigatedTitle(hit) }}</div>
-          </dd>
-          <dt v-if="hit.seq">命中</dt>
-          <dd v-if="hit.seq" class="dim">{{ hit.targetCount }} 人</dd>
-        </dl>
+        </ul>
       </section>
 
       <section>
@@ -351,17 +389,36 @@ h3 {
   font-weight: 600;
   margin: 0 0 6px;
 }
-dl {
+.kind {
+  margin: -2px 0 6px;
+}
+/* The hit's figures: 数值 and 占最大 HP in columns, the right one at the edge as the 减伤明细's 数值. */
+.figures li {
   display: grid;
-  grid-template-columns: 76px 1fr;
-  gap: 3px 8px;
-  margin: 0;
+  grid-template-columns: minmax(0, 1fr) 96px 64px;
+  gap: 6px;
+  align-items: center;
+  min-height: 20px;
 }
-dt {
+.figures li.head {
+  min-height: 18px;
   color: var(--text-dim);
+  font-size: 11px;
 }
-dd {
-  margin: 0;
+.figures .r {
+  text-align: right;
+  white-space: nowrap;
+}
+.figures .num {
+  white-space: nowrap;
+}
+/* A figure's note, under it. */
+.figures li.note {
+  display: block;
+  min-height: 0;
+  padding: 0 0 2px 12px;
+  color: var(--text-dim);
+  white-space: pre-line;
 }
 ul {
   list-style: none;
@@ -392,9 +449,6 @@ ul {
 }
 .cast.group .verdict {
   white-space: nowrap;
-}
-.pre {
-  white-space: pre-line;
 }
 /* One grid for the counted and the uncounted, so 对象 and 数值 line up across them; the counted ones' names run over
    the uncounted ones' 原因, the total sits in 数值. The icons line up with the status lists'. */
