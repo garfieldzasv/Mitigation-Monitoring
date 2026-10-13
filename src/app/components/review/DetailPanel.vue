@@ -20,8 +20,11 @@ import {
   hpAfterOf,
   formatMitigation,
   formatWallClock,
+  mitigationTable,
   mitigationTitle,
   percentOfMax,
+  netMitigation,
+  type MitigationLine,
   STATUS_CATEGORY_LABEL,
   formatUnmitigated,
   shieldAfterOf,
@@ -73,9 +76,13 @@ const before = computed(() => {
     .reverse();
 });
 
+/** The mitigation breakdown as a table, each status with its icon, and the mitigation with the vulnerabilities taken in. */
 const breakdown = computed(() => {
   const h = hit.value;
-  return h ? mitigationTitle(h.mitigation, h.multiplier, h.multiplierPartial, h.damageType).split("\n") : [];
+  if (!h || h.multiplier === null) return undefined;
+  const t = mitigationTable(h.mitigation, h.damageType);
+  const withIcon = (l: MitigationLine) => ({ ...l, key: `${l.term.side}:${l.term.statusId}`, icon: l.term.statusId ? statusIconId(l.term.statusId, l.term.stacks ?? 1) : 0 });
+  return { ...t, counted: t.counted.map(withIcon), uncounted: t.uncounted.map(withIcon), taken: netMitigation(h.mitigation, h.multiplier, h.multiplierPartial) };
 });
 
 function statusLines(list: StatusSnap[], side: "target" | "source", terms: DamageRow["mitigation"]) {
@@ -159,9 +166,51 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
 
       <section>
         <h3>减伤明细</h3>
-        <ul class="plain">
-          <li v-for="(line, i) in breakdown" :key="i" :class="{ total: i === breakdown.length - 1 }">{{ line }}</li>
-        </ul>
+        <p v-if="!breakdown" class="dim">持续伤害不显示减伤</p>
+        <template v-else>
+          <ul class="terms">
+            <li class="head">
+              <span />
+              <span class="wide">状态</span>
+              <span class="side" title="在受击者身上，还是在来源（敌人）身上">对象</span>
+              <span class="val r" title="这个状态对这一下的减伤或增伤">数值</span>
+            </li>
+            <li v-for="l in breakdown.counted" :key="l.key">
+              <GameIcon v-if="l.icon" :icon-id="l.icon" class="sicon" /><span v-else class="sicon" />
+              <span class="sname wide" :title="l.name">{{ l.name }}</span>
+              <span class="side dim">{{ l.side }}</span>
+              <span class="val num">{{ l.value }}</span>
+            </li>
+            <li v-if="breakdown.counted.length === 0" class="none"><span /><span class="wide">无</span></li>
+            <li class="total">
+              <span />
+              <span class="label">合计减伤 <span class="dim">{{ breakdown.type }}伤害</span></span>
+              <span class="val num">{{ formatMitigation(hit.multiplier, hit.multiplierPartial) }}</span>
+            </li>
+            <template v-if="breakdown.uncounted.length">
+              <li class="head">
+                <span />
+                <span>不计入减伤</span>
+                <span>原因</span>
+                <span class="side">对象</span>
+                <span class="val r">数值</span>
+              </li>
+              <li v-for="l in breakdown.uncounted" :key="l.key" class="out" :title="l.title">
+                <GameIcon v-if="l.icon" :icon-id="l.icon" class="sicon" /><span v-else class="sicon" />
+                <span class="sname">{{ l.name }}</span>
+                <span :class="{ vuln: l.term.effect === 'increase' && l.term.percent !== 0 }">{{ l.reason }}</span>
+                <span class="side">{{ l.side }}</span>
+                <span class="val num" :class="{ vuln: l.term.effect === 'increase' && l.term.percent !== 0 }">{{ l.value }}</span>
+              </li>
+            </template>
+            <li v-if="breakdown.taken.text" class="total taken">
+              <span />
+              <span class="label" title="算上易伤和增伤后的减伤；负数是比原本多受的伤害">实际减伤</span>
+              <span class="val num">{{ breakdown.taken.text }}</span>
+            </li>
+          </ul>
+          <p v-for="n in breakdown.taken.notes" :key="n" class="dim">{{ n }}</p>
+        </template>
       </section>
 
 
@@ -319,17 +368,10 @@ ul {
   margin: 0;
   padding: 0;
 }
-.plain li {
-  padding: 1px 0;
-}
-.plain li.total {
-  margin-top: 3px;
-  padding-top: 3px;
-  border-top: 1px solid var(--line);
-}
 /* Fixed columns, shared by both status lists, so category, time and caster line up across them. */
 .statuses li,
-.cast li {
+.cast li,
+.terms li {
   display: grid;
   align-items: center;
   gap: 6px;
@@ -353,6 +395,40 @@ ul {
 }
 .pre {
   white-space: pre-line;
+}
+/* One grid for the counted and the uncounted, so 对象 and 数值 line up across them; the counted ones' names run over
+   the uncounted ones' 原因, the total sits in 数值. The icons line up with the status lists'. */
+.terms li {
+  grid-template-columns: 15px minmax(0, 1fr) 44px 40px 44px;
+}
+.terms li.head {
+  height: 18px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.terms .r {
+  text-align: right;
+  white-space: nowrap;
+}
+.terms .wide {
+  grid-column: 2 / 4;
+}
+.terms .label {
+  grid-column: 2 / 5;
+  white-space: nowrap;
+}
+.terms li.total {
+  border-top: 1px solid var(--line);
+}
+.terms li.total + li.head {
+  margin-top: 6px;
+}
+.terms li.none,
+.terms li.out {
+  color: var(--text-dim);
+}
+.terms .vuln {
+  color: var(--cat-vuln);
 }
 /* 受击前 HP as wide as its heading. */
 .cast.before li {

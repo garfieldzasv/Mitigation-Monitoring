@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, formatMitigation, formatRemaining, formatUnmitigated, remainingSeconds, mitigationColor, mitigationPercent, mitigationTitle, statusRemaining, unmitigatedEstimate, verdictLabel, vulnerabilityNote } from "@/app/format";
+import { formatClock, formatMitigation, formatRemaining, formatUnmitigated, remainingSeconds, mitigationColor, mitigationPercent, mitigationTable, mitigationTitle, statusRemaining, netMitigation, unmitigatedEstimate, verdictLabel, vulnerabilityNote } from "@/app/format";
 import type { DamageRow } from "@/core/engine/types";
+import type { MitigationTerm } from "@/core/mitigation/multiplier";
 
 describe("formatClock", () => {
   it("mm:ss without fractions, negative before the pull", () => {
@@ -78,6 +79,50 @@ describe("mitigation", () => {
       "物理伤害，合计减伤 28%?（有数值未知的减伤，实际更高）",
     ]);
     expect(mitigationTitle([], null, false, "unknown")).toContain("持续伤害");
+  });
+
+  it("tables the breakdown: the counted reductions, then the rest with the reason", () => {
+    const terms: MitigationTerm[] = [
+      { name: "世界树之干", percent: 10, effect: "reduction", side: "target", statusId: 2687 },
+      { name: "受伤加重", percent: 20, effect: "increase", side: "target", statusId: 1789 },
+      { name: "圣盾阵", percent: 15, effect: "reduction", side: "target", statusId: 1856 },
+      { name: "策动", percent: 10, effect: "reduction", side: "target", statusId: 1951, overlapped: true },
+      { name: "抗死", percent: 0, effect: "reduction", side: "target", statusId: 2707 },
+      { name: "雪仇", percent: 10, effect: "reduction", side: "source", statusId: 1193, inherited: true },
+      { name: "格挡", percent: 20, effect: "reduction", side: "target", statusId: 0 },
+    ];
+    const { counted, uncounted, type } = mitigationTable(terms, "magical");
+    expect(counted.map((l) => [l.name, l.side, l.value])).toEqual([
+      ["世界树之干", "受击者", "−10%"],
+      ["圣盾阵", "受击者", "−15%"],
+      ["雪仇（继承）", "来源", "−10%"],
+      ["格挡", "受击者", "−20%"],
+    ]);
+    expect(uncounted.map((l) => [l.name, l.value, l.reason])).toEqual([
+      ["受伤加重", "+20%", "易伤"],
+      ["策动", "−10%", "不叠加"],
+      ["抗死", "—", "不生效"],
+    ]);
+    expect(type).toBe("魔法");
+    const unknown = mitigationTable([...terms.slice(0, 1), { name: "某减伤", percent: null, effect: "reduction", side: "target", statusId: 99999 }], "physical");
+    expect(unknown.counted.map((l) => l.value)).toEqual(["−10%", "未知"]);
+  });
+
+  it("takes the known vulnerabilities and damage-ups into the mitigation, one after the other, written as 合计减伤", () => {
+    const vuln: MitigationTerm = { name: "受伤加重", percent: 20, effect: "increase", side: "target", statusId: 1789 };
+    const up: MitigationTerm = { name: "伤害提高", percent: 10, effect: "increase", side: "source", statusId: 61 };
+    const iron: MitigationTerm = { name: "铁壁", percent: 20, effect: "reduction", side: "target", statusId: 1191 };
+    expect(netMitigation([iron, vuln], 0.5508, false)).toEqual({ text: "34%", notes: [] }); // ×0.5508 ×1.2 = ×0.661
+    expect(netMitigation([iron, vuln, up], 0.5508, false).text).toBe("27%"); // ×0.5508 ×1.2 ×1.1 = ×0.727
+    expect(netMitigation([vuln], 1, false).text).toBe("-20%"); // more damage: negative
+    expect(netMitigation([iron, { ...vuln, percent: 25 }], 0.8, false).text).toBe("0%"); // ×0.8 ×1.25
+    // None that applies: no figure, it would only repeat 合计减伤.
+    expect(netMitigation([iron], 0.8, false)).toEqual({ notes: [] });
+    expect(netMitigation([iron, { ...vuln, percent: 0 }], 0.8, false)).toEqual({ notes: [] });
+    expect(netMitigation([iron], 0.8, true)).toEqual({ notes: ["有数值未知的减伤：合计减伤还要更高"] });
+    const unknown = netMitigation([iron, { ...vuln, percent: null }], 0.8, true);
+    expect(unknown.text).toBe("20%?");
+    expect(unknown.notes).toEqual(["有数值未知的减伤：合计减伤和实际减伤还要更高", "有数值未知的易伤：实际减伤还要更低"]);
   });
 
   it("is red at 0%, green at 50%, clamped outside", () => {

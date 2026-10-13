@@ -502,6 +502,55 @@ try {
   const groupLines = JSON.parse(groupVerdicts);
   check("detail: 同组受击's 判定 stays on one line (格挡·全吸收)", groupLines.some((v) => v.text.includes("·")) && groupLines.every((v) => v.height <= 22), groupVerdicts);
 
+  // The 减伤明细 table, on a hit through two reductions or more with a status not counted too: the total in 数值, the
+  // same as 减伤 above it; 对象 and 数值 line up across the counted and the uncounted.
+  const terms = JSON.parse(
+    await review.evaluate(`(async () => {
+      const body = document.querySelector('.table .body');
+      for (let top = 0; top < body.scrollHeight; top += body.clientHeight) {
+        body.scrollTop = top;
+        await new Promise((r) => setTimeout(r, 50));
+        for (const row of document.querySelectorAll('.table .row:not(.death)')) {
+          if (row.querySelectorAll('.chip').length < 3) continue;
+          row.click();
+          await new Promise((r) => setTimeout(r, 100));
+          const lis = [...document.querySelectorAll('.detail .terms li')];
+          const counted = lis.filter((li) => !li.className);
+          if (counted.length < 2 || !lis.some((li) => li.classList.contains('out'))) continue;
+          const mit = [...document.querySelectorAll('.detail dt')].find((d) => d.textContent.trim() === '减伤')?.nextElementSibling;
+          const edges = (sel, side) => [...new Set([...document.querySelectorAll('.detail .terms ' + sel)].map((e) => Math.round(e.getBoundingClientRect()[side])))];
+          return JSON.stringify({
+            heads: lis.filter((li) => li.classList.contains('head')).map((li) => [...li.children].map((s) => s.textContent.trim())),
+            cut: [...document.querySelectorAll('.detail .terms span')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent.trim()),
+            total: document.querySelector('.detail .terms li.total .val')?.textContent.trim(),
+            mitigation: mit?.textContent.trim(),
+            increases: [...document.querySelectorAll('.detail .terms li.out .val')].map((e) => e.textContent.trim()).filter((v) => v.startsWith('+')),
+            taken: document.querySelector('.detail .terms li.taken .val')?.textContent.trim(),
+            side: edges('.side', 'left'),
+            value: edges('.val', 'right'),
+          });
+        }
+      }
+      return '{}';
+    })()`),
+  );
+  check(
+    "detail: 减伤明细 is headed 状态, 对象, 数值 and 不计入减伤, 原因, 对象, 数值, nothing cut, the total the hit's 减伤, the columns lined up",
+    JSON.stringify(terms.heads) === '[["","状态","对象","数值"],["","不计入减伤","原因","对象","数值"]]' &&
+      terms.cut.length === 0 &&
+      terms.total === terms.mitigation &&
+      terms.side.length === 1 &&
+      terms.value.length === 1,
+    JSON.stringify(terms),
+  );
+  // 实际减伤: the increases taken into 合计减伤 one after the other, written as it is (both rounded, so within 1).
+  const takenExpected = 100 - terms.increases?.reduce((x, v) => x * (1 + Number.parseFloat(v.slice(1)) / 100), 100 - Number.parseFloat(terms.total));
+  check(
+    "detail: 实际减伤 under the table is 合计减伤 with the increases taken in",
+    terms.increases?.length > 0 && /^-?\d+%\??$/.test(terms.taken ?? "") && Math.abs(Number.parseFloat(terms.taken) - takenExpected) <= 1,
+    `${terms.taken} (expected ≈${takenExpected?.toFixed(1)}%)`,
+  );
+
   // Every table's headings line up with their columns: a heading's text with its column's first row, on the side the
   // column's values sit (the times and figures right, names left), within 1 px.
   const ALIGNMENT = `((headSel, rowSel) => {
@@ -529,7 +578,21 @@ try {
   const misaligned = [];
   const headings = async (page, headSel, rowSel) => misaligned.push(...(await page.evaluate(`${ALIGNMENT}(${JSON.stringify(headSel)}, ${JSON.stringify(rowSel)})`)));
   await headings(review, ".table .head", ".table .row:not(.death)");
+  await headings(review, ".detail .terms li.head", ".detail .terms li:not([class])");
+  await headings(review, ".detail .terms li.head ~ li.head", ".detail .terms li.out");
   await headings(monitor, ".head", ".body .row:not(.death)");
+  // 减伤明细 on a hit with no vulnerability or damage-up: no 实际减伤 line (it would only repeat 合计减伤).
+  const noIncrease = await review.evaluate(`(async () => {
+    for (const row of document.querySelectorAll('.table .row:not(.death)')) {
+      row.click();
+      await new Promise((r) => setTimeout(r, 100));
+      if (!document.querySelector('.detail .terms li.total')) continue;
+      if ([...document.querySelectorAll('.detail .terms li.out .val')].some((e) => e.textContent.trim().startsWith('+'))) continue;
+      return document.querySelector('.detail .terms li.taken') ? 'shown' : 'none';
+    }
+    return 'no hit without one';
+  })()`);
+  check("detail: no 实际减伤 line without a vulnerability or damage-up", noIncrease === "none", noIncrease);
   await review.evaluate("document.querySelector('.detail .close')?.click(); document.querySelector('.tab[data-tab=aoe]').click(); true");
   await sleep(400);
   await review.evaluate("document.querySelector('.groups .g:not(.head)')?.click(); true");
