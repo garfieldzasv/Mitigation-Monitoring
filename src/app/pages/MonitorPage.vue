@@ -81,7 +81,7 @@ const look = computed(() => ({ "--panel-alpha": String(settings.value.opacity), 
       <span v-if="connection === 'connecting'" class="dim">正在连接 ACT…</span>
       <span v-else-if="connection === 'disconnected'" class="warn" title="5 秒内没有连上 OverlayPlugin，仍在重试">未连接 ACT</span>
       <template v-if="encounter">
-        <span class="zone" :class="{ live: running }" :title="encounter.zoneName">{{ running ? "●" : "○" }} {{ encounter.zoneName }}</span>
+        <span class="zone" :class="{ live: running }" :title="encounter.zoneName">{{ encounter.zoneName }}</span>
         <span class="num">{{ duration }}</span>
         <span v-if="currentWindow" class="phase-tag" :title="phaseSummary(currentWindow, encounter.start)">离场</span>
         <span class="deaths" title="死亡次数"><UiIcon name="death" /> {{ deaths }}</span>
