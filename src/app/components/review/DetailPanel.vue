@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { inEffectOrder, type DamageRow, type DeathRow, type Row } from "@/core/engine/types";
+import { damageTaken, inEffectOrder, type DamageRow, type DeathRow, type Row } from "@/core/engine/types";
 import { sourceLabel } from "@/core/filter/rowFilter";
 import { isListedStatus, statusIconId } from "@/core/game/statuses";
 import { termApplies } from "@/core/mitigation/multiplier";
@@ -67,6 +67,59 @@ const shieldSpan = computed(() => {
   return { before: g.before, after };
 });
 
+/**
+ * A bar under the hit's name, the whole bar max HP as the game's HP bar: what was left after the hit on the left, what
+ * the hit took on the right, as the bar reads; before → after on hover.
+ */
+interface Bar {
+  kind: "shield" | "hp";
+  label: string;
+  left: string;
+  right?: string | undefined;
+  title: string;
+  style: Record<string, string>;
+}
+/**
+ * The shield and HP bars: yellow the shield left after the hit, green the HP left, red what the hit took of each, the
+ * rest of the HP bar grey (missing before the hit). HP after from the hit's own line, else HP before less the damage;
+ * what the shields took as 盾吸收 says, else the shield before less after.
+ */
+const bars = computed((): Bar[] => {
+  const h = hit.value;
+  if (!h) return [];
+  const at = (v: number) => `${h.maxHp > 0 ? (Math.min(1, Math.max(0, v / h.maxHp)) * 100).toFixed(1) : 0}%`;
+  const figure = (v: number | undefined, mark = "") => (v === undefined ? "?" : `${v ? mark : ""}${v.toLocaleString()} (${percentOfMax(v, h.maxHp)})`);
+  const out: Bar[] = [];
+  const s = shieldSpan.value;
+  const g = h.shieldGroup;
+  if (s && g) {
+    const left = s.after ?? 0;
+    const known = g.closed && g.absorbed !== undefined;
+    const took = known ? g.absorbed : s.before !== undefined && s.after !== undefined ? s.before - s.after : undefined;
+    const mark = !known ? "≈" : g.bound === "atLeast" ? "≥" : g.bound === "atMost" ? "≤" : "≈";
+    out.push({
+      kind: "shield",
+      label: "盾量",
+      left: figure(s.after, "≈"),
+      right: took === undefined ? "−?" : `−${figure(took, mark)}`,
+      title: `受击前 ${figure(s.before, "≈")} → 受击后 ${figure(s.after, "≈")}`,
+      style: { "--left": at(left), "--end": at(left + (took ?? 0)) },
+    });
+  }
+  const taken = damageTaken(h);
+  const left = h.hpAfter ?? Math.max(0, h.hpBefore - taken);
+  const after = hpAfterOf(h);
+  out.push({
+    kind: "hp",
+    label: "HP",
+    left: h.noEffect ? figure(h.hpBefore) : figure(after),
+    right: h.noEffect ? undefined : `−${figure(taken)}`,
+    title: h.noEffect ? "这次伤害未生效" : `受击前 ${figure(h.hpBefore)} → 受击后 ${after === undefined ? "不确定" : figure(after)}`,
+    style: { "--left": at(left), "--end": at(left + taken) },
+  });
+  return out;
+});
+
 /** One of the hit's figures: what, how much, its share of max HP where it has one, and a note under it. */
 interface Figure {
   label: string;
@@ -74,7 +127,6 @@ interface Figure {
   percent?: string | undefined;
   title?: string | undefined;
   crit?: boolean;
-  dim?: boolean;
   note?: string | undefined;
 }
 /** The hit's figures as a table, so the values and the shares line up. */
@@ -85,26 +137,14 @@ const figures = computed((): Figure[] => {
   const out: Figure[] = [{ label: "伤害", value: `${h.amount.toLocaleString()}${h.crit ? "!" : ""}`, percent: pct(h.amount), crit: h.crit }];
   const g = h.shieldGroup;
   if (g) {
-    const shield = (v: number | undefined) => (v === undefined ? "?" : v ? `≈${v.toLocaleString()}` : "0");
     const bound = g.bound === "atLeast" ? "≥" : g.bound === "atMost" ? "≤" : "";
-    out.push(
-      { label: "盾吸收", value: absorbedText(h), percent: g.closed && g.absorbed !== undefined ? `${bound}${pct(g.absorbed)}` : undefined, title: absorbedTitle(h) },
-      { label: "受击前盾量", value: shield(shieldSpan.value?.before), percent: pct(shieldSpan.value?.before) },
-      {
-        label: "受击后盾量",
-        value: shield(shieldSpan.value?.after),
-        percent: pct(shieldSpan.value?.after),
-        note: group.value ? `盾吸收和盾量是同组 ${group.value.members.length} 下的合计` : undefined,
-      },
-    );
-  }
-  if (h.noEffect) out.push({ label: "HP", value: "未生效", dim: true, title: "这次伤害未生效" });
-  else {
-    const after = hpAfterOf(h);
-    out.push(
-      { label: "受击前 HP", value: h.hpBefore.toLocaleString(), percent: pct(h.hpBefore) },
-      after === undefined ? { label: "受击后 HP", value: "不确定", dim: true } : { label: "受击后 HP", value: after.toLocaleString(), percent: pct(after) },
-    );
+    out.push({
+      label: "盾吸收",
+      value: absorbedText(h),
+      percent: g.closed && g.absorbed !== undefined ? `${bound}${pct(g.absorbed)}` : undefined,
+      title: absorbedTitle(h),
+      note: group.value ? `盾吸收和盾量是同组 ${group.value.members.length} 下的合计` : undefined,
+    });
   }
   const e = unmitigatedRange(h);
   out.push(
@@ -185,6 +225,14 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
           {{ hit.noEffect ? "未生效" : hit.fullyAbsorbed ? `${hit.result === "hit" ? "" : VERDICT[hit.result] + "，"}被盾全部吸收` : VERDICT[hit.result]
           }}<span v-if="hit.crit" class="crit"> · 暴击</span>{{ hit.direct ? " · 直击" : "" }}{{ hit.invulnerable ? " · 无敌中" : "" }}
         </div>
+        <div class="bars">
+          <template v-for="b in bars" :key="b.kind">
+            <span class="dim">{{ b.label }}</span>
+            <div class="bar" :class="b.kind" :style="b.style" :title="b.title">
+              <span>{{ b.left }}</span><span v-if="b.right">{{ b.right }}</span>
+            </div>
+          </template>
+        </div>
         <ul class="figures">
           <li class="head">
             <span />
@@ -194,7 +242,7 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
           <template v-for="f in figures" :key="f.label">
             <li :title="f.title">
               <span class="dim">{{ f.label }}</span>
-              <span class="num" :class="{ crit: f.crit, dim: f.dim }">{{ f.value }}</span>
+              <span class="num" :class="{ crit: f.crit }">{{ f.value }}</span>
               <span class="num">{{ f.percent }}</span>
             </li>
             <li v-if="f.note" class="note">{{ f.note }}</li>
@@ -391,6 +439,33 @@ h3 {
 }
 .kind {
   margin: -2px 0 6px;
+}
+/* The shield and HP bars: the whole bar max HP; the figures inside, white on any colour. */
+.bars {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  font: 11px/18px var(--mono);
+  color: #fff;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  white-space: nowrap;
+}
+.bar.shield {
+  background: linear-gradient(to right, rgba(229, 184, 92, 0.85) var(--left), rgba(229, 112, 92, 0.85) var(--left) var(--end), rgba(255, 255, 255, 0.06) var(--end));
+}
+.bar.hp {
+  background: linear-gradient(to right, rgba(111, 207, 127, 0.75) var(--left), rgba(229, 112, 92, 0.85) var(--left) var(--end), rgba(255, 255, 255, 0.14) var(--end));
 }
 /* The hit's figures: 数值 and 占最大 HP in columns, the right one at the edge as the 减伤明细's 数值. */
 .figures li {

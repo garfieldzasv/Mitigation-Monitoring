@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Phase } from "@/core/engine/phases";
-import { type DamageRow, type DeathRow, type Row, damageTaken } from "@/core/engine/types";
+import type { DamageRow, DeathRow, Row } from "@/core/engine/types";
 import { sourceLabel, type FilterOptions } from "@/core/filter/rowFilter";
 import ChecklistFilter from "../common/ChecklistFilter.vue";
 import JobIcon from "../common/JobIcon.vue";
@@ -161,10 +161,6 @@ function amountTitle(r: DamageRow): string {
   return `HP ${r.hpBefore.toLocaleString()}${after} / ${r.maxHp.toLocaleString()}${shield}`;
 }
 
-function damageFraction(r: DamageRow): number {
-  return r.maxHp > 0 ? Math.min(1, damageTaken(r) / r.maxHp) : 0;
-}
-
 function deathText(r: DeathRow): string {
   return deathSentence(r, props.allRows.find((x) => x.id === r.killerRowId) as DamageRow | undefined);
 }
@@ -242,7 +238,6 @@ function deathTitle(r: DeathRow): string {
           <span
             class="c-amount num"
             :class="{ dim: r.amount === 0, crit: r.crit }"
-            :style="{ '--frac': damageFraction(r) }"
             :title="amountTitle(r)"
           >
             {{ r.amount.toLocaleString() }}<span v-if="r.crit" class="crit-mark">!</span><sup v-if="r.direct">直</sup>
@@ -362,9 +357,6 @@ function deathTitle(r: DeathRow): string {
 .c-job {
   display: flex;
   justify-content: center;
-}
-.c-amount {
-  background: linear-gradient(to left, var(--bar-damage) calc(var(--frac, 0) * 100%), transparent 0);
 }
 .c-death {
   grid-column: 3 / -1;

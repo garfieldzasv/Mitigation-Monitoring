@@ -355,7 +355,7 @@ try {
   );
   check(
     "review: the hit's figures are headed 数值, 占最大 HP, each on one line, nothing cut",
-    JSON.stringify(figures.heads) === '["","数值","占最大 HP"]' && ["伤害", "受击前 HP", "受击后 HP", "最大 HP", "减伤", "未减伤估算"].every((l) => figures.labels.includes(l)) && figures.tall.length === 0 && figures.cut.length === 0,
+    JSON.stringify(figures.heads) === '["","数值","占最大 HP"]' && ["伤害", "最大 HP", "减伤", "未减伤估算"].every((l) => figures.labels.includes(l)) && figures.tall.length === 0 && figures.cut.length === 0,
     JSON.stringify(figures),
   );
   // Category, remaining time and caster sit in fixed columns, the same in both status lists.
@@ -518,6 +518,48 @@ try {
   })()`);
   const groupLines = JSON.parse(groupVerdicts);
   check("detail: 同组受击's 判定 stays on one line (格挡·全吸收)", groupLines.some((v) => v.text.includes("·")) && groupLines.every((v) => v.height <= 22), groupVerdicts);
+
+  // The shield and HP bars, on a hit that broke a shield (a shield figure, damage through): both bars, figures only in
+  // them, what was left on the left and what the hit took on the right, the red as wide as the damage's share of max HP.
+  const bars = JSON.parse(
+    await review.evaluate(`(async () => {
+      const body = document.querySelector('.table .body');
+      for (let top = 0; top < body.scrollHeight; top += body.clientHeight) {
+        body.scrollTop = top;
+        await new Promise((r) => setTimeout(r, 50));
+        for (const row of document.querySelectorAll('.table .row:not(.death)')) {
+          const share = parseInt(row.querySelector('.c-amount .share')?.textContent ?? '');
+          if (!(share >= 1) || !row.querySelector('.c-shield')?.textContent.trim().startsWith('≈')) continue;
+          row.click();
+          await new Promise((r) => setTimeout(r, 100));
+          const figure = (label) => [...document.querySelectorAll('.detail .figures li')].find((li) => li.firstElementChild?.textContent.trim() === label)?.children[1].textContent.trim();
+          return JSON.stringify({
+            amount: figure('伤害'),
+            max: figure('最大 HP'),
+            bars: [...document.querySelectorAll('.detail .bar')].map((b) => ({
+              kind: b.classList.contains('shield') ? 'shield' : 'hp',
+              texts: [...b.children].map((s) => s.textContent.trim()),
+              red: parseFloat(b.style.getPropertyValue('--end')) - parseFloat(b.style.getPropertyValue('--left')),
+              title: b.title,
+            })),
+          });
+        }
+      }
+      return '{}';
+    })()`),
+  );
+  const barFigure = /^([≈≥≤]?[\d,]+ \(\d+%\)|\?)$/;
+  const hpBar = bars.bars?.find((b) => b.kind === "hp");
+  const num = (s) => Number((s ?? "").replace(/[^\d]/g, ""));
+  check(
+    "detail: a hit that broke a shield has a 盾量 and an HP bar, figures only, left what was left and right −what it took",
+    JSON.stringify(bars.bars?.map((b) => b.kind)) === '["shield","hp"]' &&
+      bars.bars.every((b) => b.texts.length === 2 && barFigure.test(b.texts[0]) && b.texts[1].startsWith("−") && barFigure.test(b.texts[1].slice(1)) && b.title.startsWith("受击前")) &&
+      bars.bars.every((b) => !/[一-鿿]/.test(b.texts.join(""))) &&
+      num(hpBar.texts[1].split("(")[0]) === num(bars.amount) &&
+      Math.abs(hpBar.red - (num(bars.amount) / num(bars.max)) * 100) < 0.2,
+    JSON.stringify(bars),
+  );
 
   // The 减伤明细 table, on a hit through two reductions or more with a status not counted too: the total in 数值, the
   // same as 减伤 above it; 对象 and 数值 line up across the counted and the uncounted.
