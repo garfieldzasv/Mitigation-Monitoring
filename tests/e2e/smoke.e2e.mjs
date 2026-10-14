@@ -583,8 +583,11 @@ try {
             cut: [...document.querySelectorAll('.detail .terms span')].filter((s) => s.scrollWidth > s.clientWidth + 1).map((s) => s.textContent.trim()),
             total: document.querySelector('.detail .terms li.total .val')?.textContent.trim(),
             mitigation: mit?.textContent.trim(),
-            increases: [...document.querySelectorAll('.detail .terms li.out .val')].map((e) => e.textContent.trim()).filter((v) => v.startsWith('+')),
+            increases: [...document.querySelectorAll('.detail .terms li.out .val.vuln')].map((e) => e.textContent.trim()),
+            values: [...document.querySelectorAll('.detail .terms .val.num')].map((e) => e.textContent.trim()),
             taken: document.querySelector('.detail .terms li.taken .val')?.textContent.trim(),
+            takenLabel: document.querySelector('.detail .terms li.taken .label')?.textContent.trim(),
+            takenRed: document.querySelector('.detail .terms li.taken .val')?.classList.contains('vuln'),
             side: edges('.side', 'left'),
             value: edges('.val', 'right'),
           });
@@ -602,13 +605,20 @@ try {
       terms.value.length === 1,
     JSON.stringify(terms),
   );
-  // 实际减伤: the increases taken into 合计减伤 one after the other, written as it is (both rounded, so within 1).
-  const takenExpected = 100 - terms.increases?.reduce((x, v) => x * (1 + Number.parseFloat(v.slice(1)) / 100), 100 - Number.parseFloat(terms.total));
+  // The last line: the increases taken into 合计减伤 one after the other (both rounded, so within 1), 实际减伤 in white
+  // or, when the hit did more than with none of them, 实际增伤 in red; no value in the table has a sign.
+  const net = terms.increases?.reduce((x, v) => x * (1 + Number.parseFloat(v) / 100), 100 - Number.parseFloat(terms.total)) - 100;
   check(
-    "detail: 实际减伤 under the table is 合计减伤 with the increases taken in",
-    terms.increases?.length > 0 && /^-?\d+%\??$/.test(terms.taken ?? "") && Math.abs(Number.parseFloat(terms.taken) - takenExpected) <= 1,
-    `${terms.taken} (expected ≈${takenExpected?.toFixed(1)}%)`,
+    "detail: 实际减伤 / 实际增伤 under the table is 合计减伤 with the increases taken in, the colour its direction, no signs",
+    terms.increases?.length > 0 &&
+      /^\d+%\??$/.test(terms.taken ?? "") &&
+      terms.takenLabel === (net > 0 ? "实际增伤" : "实际减伤") &&
+      terms.takenRed === net > 0 &&
+      Math.abs(Number.parseFloat(terms.taken) - Math.abs(net)) <= 1 &&
+      terms.values.every((v) => !/[−+-]/.test(v)),
+    `${terms.takenLabel} ${terms.taken} red=${terms.takenRed} (damage ${net?.toFixed(1)}%) values ${terms.values?.join(" ")}`,
   );
+
 
   // Every table's headings line up with their columns: a heading's text with its column's first row, on the side the
   // column's values sit (the times and figures right, names left), within 1 px.
@@ -641,18 +651,18 @@ try {
   await headings(review, ".detail .terms li.head", ".detail .terms li:not([class])");
   await headings(review, ".detail .terms li.head ~ li.head", ".detail .terms li.out");
   await headings(monitor, ".head", ".body .row:not(.death)");
-  // 减伤明细 on a hit with no vulnerability or damage-up: no 实际减伤 line (it would only repeat 合计减伤).
+  // 减伤明细 on a hit with no vulnerability or damage-up: no 实际减伤 / 实际增伤 line (it would only repeat 合计减伤).
   const noIncrease = await review.evaluate(`(async () => {
     for (const row of document.querySelectorAll('.table .row:not(.death)')) {
       row.click();
       await new Promise((r) => setTimeout(r, 100));
       if (!document.querySelector('.detail .terms li.total')) continue;
-      if ([...document.querySelectorAll('.detail .terms li.out .val')].some((e) => e.textContent.trim().startsWith('+'))) continue;
+      if (document.querySelector('.detail .terms li.out .val.vuln')) continue;
       return document.querySelector('.detail .terms li.taken') ? 'shown' : 'none';
     }
     return 'no hit without one';
   })()`);
-  check("detail: no 实际减伤 line without a vulnerability or damage-up", noIncrease === "none", noIncrease);
+  check("detail: no 实际减伤 / 实际增伤 line without a vulnerability or damage-up", noIncrease === "none", noIncrease);
   await review.evaluate("document.querySelector('.detail .close')?.click(); document.querySelector('.tab[data-tab=aoe]').click(); true");
   await sleep(400);
   await review.evaluate("document.querySelector('.groups .g:not(.head)')?.click(); true");

@@ -313,7 +313,7 @@ export interface MitigationLine {
   name: string;
   /** Whom it is on: 受击者, or 来源 (the enemy). */
   side: string;
-  /** `−10%`, `+20%`, `未知`, `—` when it does not apply to this damage. */
+  /** `10%` (white for a reduction, red for an increase), `未知`, `—` when it does not apply to this damage. */
   value: string;
   /** A status that does not count: why (易伤, 增伤, 不叠加, 不生效). */
   reason?: string;
@@ -322,7 +322,8 @@ export interface MitigationLine {
 
 /**
  * The mitigation breakdown as a table: the reductions that count toward the hit's mitigation
- * (core/mitigation/multiplier.ts), then the statuses listed but not counted, with the reason.
+ * (core/mitigation/multiplier.ts), then the statuses listed but not counted, with the reason. Values without a sign:
+ * the colour says which way (white less damage, red more), so a minus never means two things.
  */
 export function mitigationTable(
   terms: readonly MitigationTerm[],
@@ -337,27 +338,35 @@ export function mitigationTable(
       side: t.side === "source" ? "来源" : "受击者",
     };
     if (t.percent === 0) uncounted.push({ ...line, value: "—", reason: "不生效", title: `对${TYPE[damageType]}伤害不生效` });
-    else if (t.effect === "increase") uncounted.push({ ...line, value: t.percent === null ? "未知" : `+${t.percent}%`, reason: t.side === "source" ? "增伤" : "易伤" });
-    else if (t.overlapped) uncounted.push({ ...line, value: `−${t.percent}%`, reason: "不叠加", title: "身上有更强的同类减伤，不叠加" });
-    else counted.push({ ...line, value: t.percent === null ? "未知" : `−${t.percent}%` });
+    else if (t.effect === "increase") uncounted.push({ ...line, value: t.percent === null ? "未知" : `${t.percent}%`, reason: t.side === "source" ? "增伤" : "易伤" });
+    else if (t.overlapped) uncounted.push({ ...line, value: `${t.percent}%`, reason: "不叠加", title: "身上有更强的同类减伤，不叠加" });
+    else counted.push({ ...line, value: t.percent === null ? "未知" : `${t.percent}%` });
   }
   return { counted, uncounted, type: TYPE[damageType] };
 }
 
 /**
  * The hit's mitigation with every vulnerability on the player and damage-up on the source whose value is known taken
- * in, as 合计减伤 is written (how much less the hit did; negative when it did more), the way the game takes them: one
- * after the other (45 % off and 20 % up is ×0.55 ×1.2 = ×0.66, `34%`). `?` when some value is unknown, with what the
- * unknown ones do to it. No figure when no vulnerability or damage-up applies to the hit: it would only repeat 合计减伤.
+ * in, the way the game takes them: one after the other (45 % off and 20 % up is ×0.55 ×1.2 = ×0.66, 实际减伤 34%).
+ * When the hit did more than it would have with none of them, 实际增伤 (8 %, in red) — never a negative 减伤. `?` when
+ * some value is unknown, with what the unknown ones do to it. No figure when no vulnerability or damage-up applies to
+ * the hit: it would only repeat 合计减伤.
  */
-export function netMitigation(terms: readonly MitigationTerm[], multiplier: number, partial: boolean): { text?: string; notes: string[] } {
+export function netMitigation(
+  terms: readonly MitigationTerm[],
+  multiplier: number,
+  partial: boolean,
+): { label?: string; text?: string; increase?: boolean; notes: string[] } {
   const increases = terms.filter((t) => t.effect === "increase" && t.percent !== 0);
   if (increases.length === 0) return { notes: partial ? ["有数值未知的减伤：合计减伤还要更高"] : [] };
   const factor = increases.reduce((x, t) => (t.percent === null ? x : x * (1 + t.percent / 100)), 1);
   const unknown = [...new Set(increases.filter((t) => t.percent === null).map((t) => (t.side === "source" ? "增伤" : "易伤")))];
+  const percent = mitigationPercent(multiplier * factor);
+  const increase = percent < 0;
+  const label = increase ? "实际增伤" : "实际减伤";
   const notes = [
-    ...(partial ? ["有数值未知的减伤：合计减伤和实际减伤还要更高"] : []),
-    ...(unknown.length ? [`有数值未知的${unknown.join("、")}：实际减伤还要更低`] : []),
+    ...(partial ? [increase ? "有数值未知的减伤：合计减伤还要更高，实际增伤还要更低" : "有数值未知的减伤：合计减伤和实际减伤还要更高"] : []),
+    ...(unknown.length ? [`有数值未知的${unknown.join("、")}：${increase ? "实际增伤还要更高" : "实际减伤还要更低"}`] : []),
   ];
-  return { text: formatMitigation(multiplier * factor, partial || unknown.length > 0), notes };
+  return { label, text: `${Math.abs(percent)}%${partial || unknown.length ? "?" : ""}`, increase, notes };
 }

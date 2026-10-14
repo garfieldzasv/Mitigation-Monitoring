@@ -259,7 +259,7 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
               <span />
               <span class="wide">状态</span>
               <span class="side" title="在受击者身上，还是在来源（敌人）身上">对象</span>
-              <span class="val r" title="这个状态对这一下的减伤或增伤">数值</span>
+              <span class="val r" title="白色少受伤害，红色多受伤害">数值</span>
             </li>
             <li v-for="l in breakdown.counted" :key="l.key">
               <GameIcon v-if="l.icon" :icon-id="l.icon" class="sicon" /><span v-else class="sicon" />
@@ -291,8 +291,8 @@ const VERDICT: Record<DamageRow["result"], string> = { hit: "命中", block: "�
             </template>
             <li v-if="breakdown.taken.text" class="total taken">
               <span />
-              <span class="label" title="算上易伤和增伤后的减伤；负数是比原本多受的伤害">实际减伤</span>
-              <span class="val num">{{ breakdown.taken.text }}</span>
+              <span class="label" :title="breakdown.taken.increase ? '算上易伤和增伤，比原本多受的伤害' : '算上易伤和增伤，比原本少受的伤害'">{{ breakdown.taken.label }}</span>
+              <span class="val num" :class="{ vuln: breakdown.taken.increase }">{{ breakdown.taken.text }}</span>
             </li>
           </ul>
           <p v-for="n in breakdown.taken.notes" :key="n" class="dim">{{ n }}</p>
