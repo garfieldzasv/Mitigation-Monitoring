@@ -71,7 +71,7 @@ function confirmRemove(s: ArchiveSession): void {
         <div class="head" @click="open(s)">
           <div class="line1">
             <span class="when">{{ when(s.pulls[0]!.start) }}</span>
-            <span v-if="s.recording" class="live">● 记录中</span>
+            <span v-if="s.recording" class="tag live">记录中</span>
             <span v-if="importedFrom(s).length" class="tag" :title="`从日志导入：${importedFrom(s).join('、')}`">导入</span>
             <span class="spacer" />
             <button class="icon" :class="{ on: s.pinned }" :title="s.pinned ? '取消收藏' : '收藏（不会被自动清理）'" @click.stop="emit('pin', s.id)">★</button>
@@ -138,6 +138,11 @@ function confirmRemove(s: ArchiveSession): void {
   border: 1px solid var(--line-strong);
   border-radius: 3px;
   color: var(--text-dim);
+}
+/* 记录中: a tag as 导入, in green. */
+.tag.live {
+  color: var(--ok);
+  border-color: rgba(111, 207, 127, 0.55);
 }
 ul {
   list-style: none;
